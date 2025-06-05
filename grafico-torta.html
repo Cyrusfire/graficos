@@ -8,25 +8,25 @@
         body {
             margin: 0;
             padding: 0;
-            background: transparent !important; /* Fondo transparente */
+            background: transparent !important;
             display: flex;
             align-items: center;
             justify-content: center;
             width: 100vw;
             height: 100vh;
-            font-family: Arial, sans-serif; /* Fuente base */
-            color: #ffffff; /* Color de texto por defecto para el loader */
+            font-family: Arial, sans-serif;
+            color: #ffffff; 
         }
         #chartContainer {
-            display: flex; /* Usar flex para distribuir espacio entre gráfico y leyenda */
+            display: flex; 
             width: 98%;
             height: 98%;
-            max-width: 700px; /* Aumentamos un poco para dar espacio a la leyenda vertical */
+            max-width: 750px; /* Un poco más de espacio total */
         }
-        #canvasWrapper { /* Contenedor para el canvas del gráfico */
-            flex-grow: 1; /* El gráfico tomará el espacio disponible */
-            position: relative; /* Para el loader */
-            min-width: 0; /* Necesario para flexbox en algunos navegadores */
+        #canvasWrapper {
+            flex-grow: 1; 
+            position: relative; 
+            min-width: 0; 
         }
         canvas {
             display: block;
@@ -39,33 +39,7 @@
             left: 50%;
             transform: translate(-50%, -50%);
             font-size: 16px;
-            color: #ffffff; /* Aseguramos color blanco para el loader */
-        }
-        /* Estilos adicionales para la leyenda si es necesario (Chart.js la maneja bastante bien) */
-        .chartjs-legend {
-            padding-left: 20px; /* Espacio si la leyenda está a la derecha */
-            max-width: 200px; /* Ancho máximo para la leyenda vertical */
-            overflow-y: auto; /* Scroll si hay muchos ítems */
-            color: #ffffff !important; /* Forzar color blanco */
-        }
-        .chartjs-legend ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        .chartjs-legend li {
-            display: flex;
-            align-items: center;
-            margin-bottom: 8px;
-            color: #ffffff !important; /* Forzar color blanco */
-            font-size: 12px;
-        }
-        .chartjs-legend span {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            margin-right: 8px;
-            border-radius: 2px;
+            color: #ffffff; 
         }
     </style>
 </head>
@@ -82,19 +56,14 @@
         const loaderElement = document.getElementById('loader');
         let grafico;
 
-        // Función para formatear moneda (ajusta 'es-VE' y 'VES' o 'USD' según necesites)
-        function formatCurrency(value, currency = 'USD') {
+        function formatCurrency(value, currency = 'USD') { // Asegúrate que la moneda por defecto sea la correcta para ti
             return new Intl.NumberFormat('es-VE', { style: 'currency', currency: currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
         }
 
         window.addEventListener('message', (event) => {
-            // --- Verificación de Origen (Opcional) ---
+            // Opcional: Verificación de origen
             // const allowedOrigins = ['https://TU-DOMINIO-WIX.wixsite.com', 'https://editor.wix.com', 'https://cyrusfire.github.io'];
-            // if (!allowedOrigins.includes(event.origin)) {
-            //   console.warn("Mensaje ignorado de origen no permitido:", event.origin);
-            //   loaderElement.innerText = "Error: Origen no permitido.";
-            //   return;
-            // }
+            // if (!allowedOrigins.includes(event.origin)) { /* ... manejo de error ... */ return; }
 
             if (event.data &&
                 typeof event.data === 'object' &&
@@ -104,13 +73,14 @@
                 const { labels, valores, titulo } = event.data;
                 const totalGeneral = valores.reduce((sum, val) => sum + parseFloat(val), 0);
 
-                if (labels.length === 0 || valores.length === 0) {
-                    loaderElement.innerText = "No hay datos para mostrar.";
+                if (labels.length === 0 || valores.length === 0 || totalGeneral === 0) { // Añadida comprobación de totalGeneral
+                    loaderElement.innerText = "No hay datos suficientes para mostrar.";
                     if (grafico) grafico.destroy();
+                    loaderElement.style.display = 'block';
                     return;
                 }
                 
-                loaderElement.style.display = 'none'; // Ocultar loader
+                loaderElement.style.display = 'none';
 
                 if (grafico) {
                     grafico.destroy();
@@ -119,7 +89,7 @@
                 grafico = new Chart(ctx, {
                     type: 'pie',
                     data: {
-                        labels: labels, // Estos labels se usarán por defecto si no se personaliza la leyenda
+                        labels: labels,
                         datasets: [{
                             data: valores,
                             backgroundColor: [
@@ -127,7 +97,7 @@
                                 '#FF9F40', '#8AC926', '#1982C4', '#F45B69', '#6A4C93',
                                 '#2ECC71', '#E74C3C', '#F1C40F', '#7F8C8D', '#D35400'
                             ],
-                            borderColor: '#4A4A4A', // Un borde un poco más oscuro para el tema oscuro
+                            borderColor: '#4A4A4A',
                             borderWidth: 1
                         }]
                     },
@@ -135,39 +105,33 @@
                         responsive: true,
                         maintainAspectRatio: false,
                         layout: {
-                            padding: { // Espacio alrededor del gráfico
-                                top: 0, 
-                                left: 0, 
-                                right: 0, 
-                                bottom: 0
-                            }
+                            padding: { top: 5, left: 5, right: 5, bottom: 5 }
                         },
                         plugins: {
                             title: {
                                 display: true,
                                 text: titulo || 'Distribución de Fondos',
-                                color: '#FFFFFF', // Blanco para el título
+                                color: '#FFFFFF',
                                 font: {
-                                    size: 18,
+                                    size: 18, // Tamaño del título un poco más grande
                                     weight: 'bold'
                                 },
                                 padding: {
                                     top: 10,
-                                    bottom: 25 // Más espacio después del título
+                                    bottom: 20 
                                 }
                             },
                             legend: {
-                                display: true, // Mostrar leyenda
-                                position: 'right', // Posición vertical (puedes probar 'left')
-                                align: 'center', // Centrar ítems de leyenda en su espacio
+                                display: true,
+                                position: 'right', // Leyenda a la derecha (actúa como tu lista)
+                                align: 'start', // Alinea los ítems de la leyenda al inicio (arriba) de su contenedor
                                 labels: {
-                                    color: '#FFFFFF', // Blanco para texto de leyenda por defecto
-                                    boxWidth: 15,
-                                    padding: 15,
+                                    color: '#FFFFFF',
+                                    boxWidth: 15, // Ancho del cuadrito de color
+                                    padding: 20,  // Espacio entre ítems de la leyenda
                                     font: {
-                                        size: 12
+                                        size: 13 // Tamaño de fuente de la leyenda aumentado
                                     },
-                                    // Función para generar etiquetas personalizadas en la leyenda
                                     generateLabels: function(chart) {
                                         const data = chart.data;
                                         if (data.labels.length && data.datasets.length) {
@@ -175,10 +139,11 @@
                                                 const meta = chart.getDatasetMeta(0);
                                                 const style = meta.controller.getStyle(i);
                                                 const valor = data.datasets[0].data[i];
-                                                const porcentaje = totalGeneral > 0 ? (parseFloat(valor) / totalGeneral * 100).toFixed(2) : 0;
+                                                // Evitar división por cero si totalGeneral es 0
+                                                const porcentaje = totalGeneral > 0 ? (parseFloat(valor) / totalGeneral * 100).toFixed(2) : "0.00";
                                                 
-                                                // Ajusta 'USD' a la moneda que uses si es diferente
-                                                const texto = `${label}: ${formatCurrency(valor, 'USD')} (${porcentaje}%)`;
+                                                // AQUÍ SE CONSTRUYE EL TEXTO DE CADA ÍTEM DE LA LEYENDA/LISTA
+                                                const texto = `${label}: ${formatCurrency(valor)} (${porcentaje}%)`;
 
                                                 return {
                                                     text: texto,
@@ -187,8 +152,7 @@
                                                     lineWidth: style.borderWidth,
                                                     hidden: !chart.getDataVisibility(i),
                                                     index: i,
-                                                    // Propiedades adicionales para forzar color si es necesario
-                                                    fontColor: '#FFFFFF' 
+                                                    fontColor: '#FFFFFF' // Forzar color de fuente
                                                 };
                                             });
                                         }
@@ -196,7 +160,7 @@
                                     }
                                 }
                             },
-                            tooltip: {
+                            tooltip: { // El tooltip seguirá funcionando como antes
                                 enabled: true,
                                 backgroundColor: 'rgba(0,0,0,0.85)',
                                 titleColor: '#FFFFFF',
@@ -206,7 +170,7 @@
                                 padding: 10,
                                 callbacks: {
                                     label: function(context) {
-                                        let label = context.label || ''; // Este es el label del dataset, no el de la torta
+                                        let label = '';
                                         const dataLabel = context.chart.data.labels[context.dataIndex];
                                         const value = context.parsed;
 
@@ -214,8 +178,7 @@
                                             label = dataLabel + ': ';
                                         }
                                         if (value !== null) {
-                                            // Ajusta 'USD' a la moneda que uses si es diferente
-                                            label += formatCurrency(value, 'USD');
+                                            label += formatCurrency(value);
                                             const percentage = totalGeneral > 0 ? (value / totalGeneral * 100).toFixed(2) + '%' : '0.00%';
                                             label += ' (' + percentage + ')';
                                         }
@@ -228,18 +191,11 @@
                 });
             } else {
                 console.warn("Datos recibidos para el gráfico no tienen el formato esperado o faltan:", event.data);
-                if (grafico) grafico.destroy(); // Destruir si ya existía un gráfico
+                if (grafico) grafico.destroy();
                 loaderElement.innerText = "Error: Datos inválidos.";
-                loaderElement.style.display = 'block'; // Asegurarse de que el loader se muestre si hay error de datos
+                loaderElement.style.display = 'block';
             }
         });
-
-        // Mensaje inicial si no llegan datos después de un tiempo (opcional)
-        // setTimeout(() => {
-        //     if (!grafico && loaderElement.innerText === "Cargando gráfico...") {
-        //         loaderElement.innerText = "No se recibieron datos.";
-        //     }
-        // }, 5000); // Espera 5 segundos
     </script>
 </body>
 </html>
