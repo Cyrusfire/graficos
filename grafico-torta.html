@@ -118,8 +118,8 @@
     </div>
 
     <script>
-        // Script Version: 4.0 - Fecha: 2025-06-05
-        console.log("IFRAME SCRIPT VERSION: 4.0 LOADED");
+        // Script Version: 5.0 - Fecha: 2025-06-05 
+        console.log("IFRAME SCRIPT VERSION: 5.0 LOADED");
 
         const ctx = document.getElementById('graficoTortaGithub').getContext('2d');
         const loaderElement = document.getElementById('loader');
@@ -130,7 +130,7 @@
         function isItAnArray(value) {
             const isArrayStandard = Array.isArray(value);
             const isArrayRobust = Object.prototype.toString.call(value) === '[object Array]';
-            // console.log(`isItAnArray check for value:`, value, `Array.isArray: ${isArrayStandard}`, `Object.prototype.toString: ${isArrayRobust}`);
+            // console.log(`isItAnArray debug: Value type: ${typeof value}, isArrayStandard: ${isArrayStandard}, isArrayRobust: ${isArrayRobust}`);
             return isArrayStandard || isArrayRobust;
         }
 
@@ -195,9 +195,7 @@
         window.addEventListener('message', (event) => {
             console.log("--------------------------------------------------");
             console.log(`IFRAME: MENSAJE RECIBIDO - Origen: ${event.origin} - Tipo event.data: ${typeof event.data}`);
-            // console.log("IFRAME: Contenido bruto de event.data:", event.data);
-
-
+            
             if (event.origin !== wixPageOrigin) {
                  console.log(`IFRAME: Mensaje de origen ${event.origin} IGNORADO. Esperando origen ${wixPageOrigin}.`);
                 return; 
@@ -206,7 +204,6 @@
             console.log("IFRAME: MENSAJE DE ORIGEN CORRECTO PROCESANDO...");
             console.log("IFRAME: Contenido de event.data (RAW del origen correcto):", event.data);
 
-
             let dataPayload = event.data;
 
             if (typeof dataPayload === 'string') {
@@ -214,11 +211,7 @@
                 try {
                     dataPayload = JSON.parse(dataPayload);
                     console.log("IFRAME: JSON.parse() exitoso.");
-                    console.log("IFRAME: Contenido de dataPayload (DESPUÉS DE PARSE):", JSON.stringify(dataPayload, null, 2)); // Loguear como string para mejor inspección
-                    if (dataPayload && typeof dataPayload === 'object') {
-                        console.log("IFRAME: dataPayload.labels (directo después de parse):", dataPayload.labels);
-                        console.log("IFRAME: dataPayload.valores (directo después de parse):", dataPayload.valores);
-                    }
+                    console.log("IFRAME: Contenido de dataPayload (DESPUÉS DE PARSE):", JSON.stringify(dataPayload, null, 2));
                 } catch (e) {
                     console.error("IFRAME ERROR: Falló JSON.parse(). Error:", e, "String original:", event.data);
                     loaderElement.textContent = "Error: Datos recibidos corruptos (JSON).";
@@ -236,27 +229,32 @@
                 return;
             }
 
-            const { labels, valores, titulo, error: dataError, message: errorMessage } = dataPayload;
+            // Acceder a las propiedades directamente desde dataPayload para las validaciones y uso
+            const pLabels = dataPayload.labels;
+            const pValores = dataPayload.valores;
+            const pTitulo = dataPayload.titulo;
+            const pDataError = dataPayload.error;
+            const pErrorMessage = dataPayload.message;
 
-            console.log("IFRAME: ---- Verificación de Arrays ----");
-            console.log("IFRAME: Variable 'labels' (después de destructurar):", labels);
-            console.log("IFRAME: isItAnArray(labels):", isItAnArray(labels));
-            console.log("IFRAME: Variable 'valores' (después de destructurar):", valores);
-            console.log("IFRAME: isItAnArray(valores):", isItAnArray(valores));
-            console.log("IFRAME: ------------------------------");
-            console.log("IFRAME: Variable 'titulo':", titulo);
+            console.log("IFRAME: ---- Verificación de Propiedades Directas del Payload ----");
+            console.log("IFRAME: dataPayload.labels (contenido):", pLabels);
+            console.log("IFRAME: isItAnArray(dataPayload.labels):", isItAnArray(pLabels));
+            console.log("IFRAME: dataPayload.valores (contenido):", pValores);
+            console.log("IFRAME: isItAnArray(dataPayload.valores):", isItAnArray(pValores));
+            console.log("IFRAME: ----------------------------------------------------");
+            console.log("IFRAME: dataPayload.titulo:", pTitulo);
 
 
-            if (dataError) {
-                console.error("IFRAME: Error reportado desde Velo:", errorMessage);
-                loaderElement.textContent = `Error de Velo: ${errorMessage || "Desconocido"}`;
+            if (pDataError) {
+                console.error("IFRAME: Error reportado desde Velo:", pErrorMessage);
+                loaderElement.textContent = `Error de Velo: ${pErrorMessage || "Desconocido"}`;
                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                 loaderElement.style.display = 'block'; document.getElementById('graficoTortaGithub').style.display = 'none';
                 return;
             }
 
-            if (!isItAnArray(labels) || !isItAnArray(valores)) {
-                console.error("IFRAME ERROR CRÍTICO: 'labels' o 'valores' NO SON ARRAYS (según isItAnArray).");
+            if (!isItAnArray(pLabels) || !isItAnArray(pValores)) {
+                console.error("IFRAME ERROR CRÍTICO: dataPayload.labels o dataPayload.valores NO SON ARRAYS.");
                 loaderElement.textContent = "Error: Estructura de datos incorrecta (no son arrays).";
                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                 loaderElement.style.display = 'block';
@@ -264,19 +262,20 @@
                 return;
             }
 
-            const numericValores = valores.map(v => parseFloat(v) || 0);
+            // Usar pLabels y pValores a partir de aquí
+            const numericValores = pValores.map(v => parseFloat(v) || 0);
 
-            if (labels.length === 0 && numericValores.every(v => v === 0)) {
-                 console.warn("IFRAME: 'labels' vacío y 'valores' son todos cero o vacíos. Mostrando mensaje de 'Sin datos'.");
-                 loaderElement.textContent = titulo || "No hay datos para mostrar.";
+            if (pLabels.length === 0 && numericValores.every(v => v === 0)) {
+                 console.warn("IFRAME: pLabels vacío y numericValores son todos cero o vacíos.");
+                 loaderElement.textContent = pTitulo || "No hay datos para mostrar.";
                  if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                  loaderElement.style.display = 'block';
                  document.getElementById('graficoTortaGithub').style.display = 'none';
                  return;
             }
 
-            if (labels.length !== numericValores.length) {
-                console.warn("IFRAME Advertencia: 'labels' y 'valores' no coinciden en longitud.", "Labels:", labels.length, "Valores:", numericValores.length);
+            if (pLabels.length !== numericValores.length) {
+                console.warn("IFRAME Advertencia: Longitudes de pLabels y numericValores no coinciden.", "Labels:", pLabels.length, "Valores:", numericValores.length);
                 loaderElement.textContent = "Datos inconsistentes (longitudes no coinciden).";
                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                 loaderElement.style.display = 'block';
@@ -296,9 +295,9 @@
                 graficoInstance = new Chart(ctx, {
                     type: 'pie',
                     data: {
-                        labels: labels,
+                        labels: pLabels, // Usar pLabels
                         datasets: [{
-                            data: numericValores,
+                            data: numericValores, // Usar numericValores (derivado de pValores)
                             backgroundColor: [
                                 '#36A2EB', '#FFCE56', '#FF6384', '#4BC0C0', '#9966FF', '#FF9F40',
                                 '#8AC926', '#1982C4', '#F45B69', '#6A4C93', '#2ECC71', '#E74C3C',
@@ -314,7 +313,7 @@
                         plugins: {
                             title: {
                                 display: true,
-                                text: titulo || 'Distribución de Fondos',
+                                text: pTitulo || 'Distribución de Fondos', // Usar pTitulo
                                 color: '#FFFFFF',
                                 font: { size: 16, weight: 'bold' },
                                 padding: { top: 10, bottom: 15 }
@@ -329,7 +328,7 @@
                                 callbacks: {
                                     label: function(context) {
                                         let tooltipLabel = '';
-                                        const dataLabel = context.chart.data.labels[context.dataIndex];
+                                        const dataLabel = context.chart.data.labels[context.dataIndex]; // Viene de pLabels
                                         const value = context.parsed;
                                         let total = 0;
                                         if (context.dataset && context.dataset.data && context.dataset.data.length > 0) {
@@ -367,11 +366,10 @@
 
         setTimeout(() => {
             if (!graficoInstance && loaderElement.style.display !== 'none' && loaderElement.textContent === "Cargando datos...") {
-                console.log("IFRAME: Timeout (10s), no se recibieron datos iniciales de Velo. Verifique el origen esperado y el código Velo.");
+                console.log("IFRAME: Timeout (12s), no se recibieron datos válidos de Velo. Verifique el origen esperado y el código Velo.");
                 loaderElement.textContent = "Esperando datos de Wix...";
             }
-        }, 10000);
+        }, 12000); // Aumentado un poco más el timeout
     </script>
 </body>
 </html>
-
