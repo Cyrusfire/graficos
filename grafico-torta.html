@@ -2,58 +2,59 @@
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Distribución de Fondos</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             margin: 0;
-            padding: 0; 
-            background: transparent !important; 
-            display: flex; 
+            padding: 0;
+            background: transparent !important;
+            display: flex;
             align-items: center;
             justify-content: center;
             width: 100vw;
             height: 100vh;
             box-sizing: border-box;
             font-family: Arial, sans-serif;
-            color: #ffffff; 
+            color: #ffffff;
         }
         #chartContainer {
-            display: flex; 
-            width: 100%;   
-            height: 100%;  
-            max-width: 100%; 
+            display: flex;
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
         }
         #canvasWrapper {
             flex-grow: 1;
-            flex-basis: 60%; 
+            flex-basis: 60%;
             position: relative;
-            min-width: 0; 
+            min-width: 0;
             height: 100%;
-            display: flex; 
+            display: flex;
             align-items: center;
             justify-content: center;
         }
         canvas {
             display: block;
-            max-width: 100%; 
+            max-width: 100%;
             max-height: 100%;
         }
         #legendWrapper {
-            flex-basis: 40%; 
-            padding-left: 20px; 
-            overflow-y: auto; 
+            flex-basis: 40%;
+            padding-left: 20px;
+            overflow-y: auto;
             height: 100%;
             color: #ffffff;
-            font-size: 13px; 
-            box-sizing: border-box; 
+            font-size: 13px;
+            box-sizing: border-box;
         }
-        #legendWrapper h3 { 
-            margin-top: 5px; 
+        #legendWrapper h3 {
+            margin-top: 5px;
             margin-bottom: 15px;
             font-size: 16px;
             padding-bottom: 10px;
-            color: #ffffff; 
+            color: #ffffff;
         }
         #legendList {
             list-style: none;
@@ -63,11 +64,11 @@
         #legendList li {
             display: flex;
             align-items: center;
-            margin-bottom: 10px; 
+            margin-bottom: 10px;
             padding: 4px;
             border-radius: 3px;
             transition: background-color 0.2s;
-            cursor: default; 
+            cursor: default;
         }
         .legend-color-box {
             display: inline-block;
@@ -75,19 +76,19 @@
             height: 14px;
             margin-right: 10px;
             border-radius: 3px;
-            border: 1px solid rgba(255,255,255,0.5); 
+            border: 1px solid rgba(255,255,255,0.5);
         }
         .legend-text {
-            flex-grow: 1; 
-            color: #ffffff; 
+            flex-grow: 1;
+            color: #ffffff;
         }
         .legend-amount {
             font-weight: bold;
-            margin-left: 8px; 
-            color: #ffffff; 
+            margin-left: 8px;
+            color: #ffffff;
         }
         .legend-percentage {
-            color: #e0e0e0; 
+            color: #e0e0e0;
             margin-left: 5px;
         }
         #loader {
@@ -95,9 +96,9 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 16px; 
+            font-size: 16px;
             color: #ffffff;
-            background-color: rgba(0,0,0,0.6); 
+            background-color: rgba(0,0,0,0.6);
             padding: 12px 20px;
             border-radius: 5px;
             z-index:10;
@@ -112,6 +113,7 @@
             <div id="loader">Cargando datos...</div>
         </div>
         <div id="legendWrapper">
+            <!-- El título de la leyenda se puede añadir aquí si se desea o manejarlo dinámicamente -->
             <ul id="legendList"></ul>
         </div>
     </div>
@@ -122,26 +124,27 @@
         const legendListElement = document.getElementById('legendList');
         let graficoInstance;
 
-        function formatCurrency(value, currency = 'USD') {
+        // Función para formatear moneda (ajustada para Bolívares por defecto según tu código original)
+        function formatCurrency(value, currencyCode = 'VED', locale = 'es-VE') {
             if (typeof value !== 'number' || isNaN(value)) {
                 console.warn(`formatCurrency recibió un valor no numérico: ${value}. Se mostrará como 0.`);
                 value = 0;
             }
-            // ----- ¡IMPORTANTE! AJUSTA LA LÍNEA SIGUIENTE A TU MONEDA Y FORMATO REGIONAL -----
-            // Ejemplo para Dólares Americanos (EE.UU.):
-            // return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-            
-            // Ejemplo para Bolívares (Venezuela) - VED es el código actual:
-            return new Intl.NumberFormat('es-VE', { style: 'currency', currency: 'VED', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-            
-            // Ejemplo para Euros (España):
-            // return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+            try {
+                return new Intl.NumberFormat(locale, { style: 'currency', currency: currencyCode, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+            } catch (e) {
+                console.error("Error al formatear moneda. Usando formato simple:", e);
+                // Fallback a un formato simple si Intl no está disponible o falla con el código/locale
+                return `${currencyCode} ${value.toFixed(2)}`;
+            }
         }
-        
+
+        // Función para generar la leyenda personalizada
         function generateCustomLegend(chart) {
-            legendListElement.innerHTML = ''; 
+            legendListElement.innerHTML = ''; // Limpiar leyenda existente
             const data = chart.data;
-            if (!data.datasets || !data.datasets.length || !data.datasets[0].data) {
+
+            if (!data.datasets || !data.datasets.length || !data.datasets[0].data || !data.datasets[0].data.length) {
                 console.error("generateCustomLegend: Faltan datasets o datos en el dataset.");
                 legendListElement.innerHTML = '<li>Error al generar leyenda: datos incompletos.</li>';
                 return;
@@ -155,11 +158,18 @@
             const totalGeneral = numericData.reduce((sum, val) => sum + val, 0);
 
             if (data.labels && data.labels.length && data.datasets.length) {
+                // Crear un título para la leyenda si es necesario
+                // const legendTitleElement = document.getElementById('legendTitle'); // Asumiendo que tienes un h3 con id="legendTitle"
+                // if(legendTitleElement && chart.options.plugins.title.text) {
+                //     legendTitleElement.textContent = chart.options.plugins.title.text; // o un texto específico para la leyenda
+                // }
+
+
                 data.labels.forEach((label, i) => {
                     const dataset = data.datasets[0];
-                    const valor = numericData[i]; 
-                    const backgroundColor = dataset.backgroundColor[i % dataset.backgroundColor.length]; 
-                    const borderColor = dataset.borderColor; 
+                    const valor = numericData[i];
+                    const backgroundColor = dataset.backgroundColor[i % dataset.backgroundColor.length];
+                    // const borderColor = dataset.borderColor; // No usado directamente en esta leyenda
                     const porcentaje = totalGeneral > 0 ? ((valor / totalGeneral) * 100).toFixed(2) : "0.00";
 
                     const listItem = document.createElement('li');
@@ -169,16 +179,16 @@
 
                     const textSpan = document.createElement('span');
                     textSpan.className = 'legend-text';
-                    textSpan.textContent = (label || "Sin etiqueta") + ": "; 
+                    textSpan.textContent = (label || "Sin etiqueta") + ": ";
 
                     const amountSpan = document.createElement('span');
                     amountSpan.className = 'legend-amount';
-                    amountSpan.textContent = formatCurrency(valor); 
+                    amountSpan.textContent = formatCurrency(valor); // Usar la función de formateo
 
                     const percentageSpan = document.createElement('span');
                     percentageSpan.className = 'legend-percentage';
                     percentageSpan.textContent = `(${porcentaje}%)`;
-                    
+
                     listItem.appendChild(colorBox);
                     listItem.appendChild(textSpan);
                     listItem.appendChild(amountSpan);
@@ -191,45 +201,86 @@
             }
         }
 
+        // Event listener para mensajes de Wix
         window.addEventListener('message', (event) => {
-            // --- INICIO DE LOGS DE DEPURACIÓN ADICIONALES ---
-            console.log("IFRAME: Mensaje recibido. Origen:", event.origin);
-            console.log("IFRAME: Tipo de event.data:", typeof event.data);
-            console.log("IFRAME: Contenido de event.data:", JSON.stringify(event.data, null, 2)); // Muestra el objeto formateado
+            // --- Medida de seguridad: Verificar el origen del mensaje (DESCOMENTAR Y AJUSTAR EN PRODUCCIÓN) ---
+            // const trustedOrigins = ['https://TU-DOMINIO-WIX.wixsite.com', 'https://editor.wix.com', 'https://TU-DOMINIO-GITHUB-PAGES.github.io'];
+            // if (!trustedOrigins.includes(event.origin)) {
+            //     console.warn("IFRAME: Mensaje de origen no confiable ignorado:", event.origin);
+            //     return;
+            // }
 
-            if (!event.data || typeof event.data !== 'object') {
-                console.error("IFRAME ERROR: event.data no es un objeto o es nulo.", event.data);
+            console.log("IFRAME: Mensaje recibido. Origen:", event.origin);
+            let receivedData = event.data; // Usar una variable mutable
+
+            // --- INICIO DE LOGS DE DEPURACIÓN ADICIONALES ---
+            console.log("IFRAME: Tipo de event.data (original):", typeof event.data);
+            // Intentar stringify con cuidado por si es un objeto complejo o circular no esperado
+            try {
+                console.log("IFRAME: Contenido de event.data (original como string):", JSON.stringify(event.data, null, 2));
+            } catch (e) {
+                console.log("IFRAME: No se pudo hacer JSON.stringify de event.data (original):", event.data);
+            }
+            // --- FIN DE LOGS DE DEPURACIÓN ADICIONALES ---
+
+            // **MEJORA**: Si event.data es un string, intentar parsearlo como JSON.
+            // Esto es crucial para algunos navegadores (como Edge en ciertos casos) que pueden stringify el payload.
+            if (typeof receivedData === 'string') {
+                try {
+                    receivedData = JSON.parse(receivedData);
+                    console.log("IFRAME: event.data fue parseado de string a objeto:", receivedData);
+                } catch (e) {
+                    console.error("IFRAME ERROR: event.data es un string pero no pudo ser parseado como JSON.", e, "Data original:", event.data);
+                    loaderElement.textContent = "Error: Datos recibidos corruptos (no es JSON).";
+                    legendListElement.innerHTML = '<li>Error: Formato de datos ilegible.</li>';
+                    if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
+                    loaderElement.style.display = 'block';
+                    document.getElementById('graficoTortaGithub').style.display = 'none';
+                    return;
+                }
+            }
+
+            // Verificar si receivedData es un objeto y tiene las propiedades esperadas
+            if (!receivedData || typeof receivedData !== 'object') {
+                console.error("IFRAME ERROR: `receivedData` (después de posible parseo) no es un objeto o es nulo.", receivedData);
                 loaderElement.textContent = "Error: Datos recibidos no válidos (no es objeto).";
                 legendListElement.innerHTML = '<li>Error: Formato de datos incorrecto.</li>';
-                if (graficoInstance) graficoInstance.destroy();
+                if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                 loaderElement.style.display = 'block';
+                document.getElementById('graficoTortaGithub').style.display = 'none';
                 return;
             }
 
-            // Intentar destructurar
-            const { labels, valores, titulo } = event.data;
+            // Ahora destructurar desde `receivedData` que ya sabemos que es un objeto (o debería serlo)
+            const { labels, valores, titulo, error: dataError, message: errorMessage } = receivedData;
 
-            console.log("IFRAME: Después de destructurar:");
+            // Log después de la destructuración
+            console.log("IFRAME: Después de destructurar `receivedData`:");
             console.log("IFRAME: labels:", labels, "Es array:", Array.isArray(labels));
             console.log("IFRAME: valores:", valores, "Es array:", Array.isArray(valores));
             console.log("IFRAME: titulo:", titulo);
-            // --- FIN DE LOGS DE DEPURACIÓN ADICIONALES ---
-
-
-            // --- Verificación de Origen (DESCOMENTAR Y AJUSTAR EN PRODUCCIÓN) ---
-            // const allowedOrigins = ['https://TU-DOMINIO-WIX.wixsite.com', 'https://editor.wix.com'];
-            // if (!allowedOrigins.includes(event.origin) && event.origin !== 'https://cyrusfire.github.io') { /* ... */ }
-
-
-            if (!Array.isArray(labels) || !Array.isArray(valores)) {
-                console.error("IFRAME ERROR: 'labels' o 'valores' NO SON ARRAYS después de la destructuración.", "Labels es array:", Array.isArray(labels), "Valores es array:", Array.isArray(valores));
-                loaderElement.textContent = "Error: Estructura de datos incorrecta (no son arrays).";
-                legendListElement.innerHTML = "<li>Error: 'labels' o 'valores' no son listas.</li>";
-                if (graficoInstance) graficoInstance.destroy();
+            if (dataError) {
+                console.error("IFRAME: Error reportado desde Velo:", errorMessage);
+                loaderElement.textContent = `Error de Velo: ${errorMessage || "Error desconocido"}`;
+                legendListElement.innerHTML = `<li>Error al cargar datos: ${errorMessage || "Revisar consola Velo"}</li>`;
+                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                 loaderElement.style.display = 'block';
+                document.getElementById('graficoTortaGithub').style.display = 'none';
                 return;
             }
-            
+
+
+            // Validar que labels y valores sean arrays
+            if (!Array.isArray(labels) || !Array.isArray(valores)) {
+                console.error("IFRAME ERROR: 'labels' o 'valores' NO SON ARRAYS después de la destructuración.", "Labels:", labels, "Valores:", valores);
+                loaderElement.textContent = "Error: Estructura de datos incorrecta (no son arrays).";
+                legendListElement.innerHTML = "<li>Error: 'labels' o 'valores' no son listas.</li>";
+                if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
+                loaderElement.style.display = 'block';
+                document.getElementById('graficoTortaGithub').style.display = 'none';
+                return;
+            }
+
             const numericValores = valores.map(v => {
                 const num = parseFloat(v);
                 if (isNaN(num)) {
@@ -239,34 +290,49 @@
                 return num;
             });
 
-            if (labels.length === 0 || numericValores.length === 0 || labels.length !== numericValores.length) {
-                console.warn("IFRAME Advertencia: 'labels' o 'valores' están vacíos, o no coinciden en longitud.", "Labels:", labels.length, "Valores:", numericValores.length);
-                loaderElement.textContent = "No hay datos suficientes o los datos son inconsistentes.";
-                legendListElement.innerHTML = '<li>No hay datos para mostrar o son inconsistentes.</li>';
-                if (graficoInstance) graficoInstance.destroy();
+            if (labels.length === 0 && numericValores.length === 0) {
+                 console.warn("IFRAME Advertencia: 'labels' y 'valores' están vacíos. Mostrando mensaje de 'Sin datos'.");
+                 loaderElement.textContent = titulo || "No hay datos para mostrar."; // Usar título si viene o mensaje genérico
+                 legendListElement.innerHTML = '<li>No hay datos disponibles.</li>';
+                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
+                 loaderElement.style.display = 'block';
+                 document.getElementById('graficoTortaGithub').style.display = 'none';
+                 return;
+            }
+
+
+            if (labels.length !== numericValores.length) {
+                console.warn("IFRAME Advertencia: 'labels' y 'valores' no coinciden en longitud.", "Labels:", labels.length, "Valores:", numericValores.length);
+                loaderElement.textContent = "Datos inconsistentes (longitudes no coinciden).";
+                legendListElement.innerHTML = '<li>Error: Inconsistencia en los datos recibidos.</li>';
+                if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                 loaderElement.style.display = 'block';
+                document.getElementById('graficoTortaGithub').style.display = 'none';
                 return;
             }
-            
-            loaderElement.style.display = 'none'; 
+
+            loaderElement.style.display = 'none';
+            document.getElementById('graficoTortaGithub').style.display = 'block';
+
 
             if (graficoInstance) {
                 graficoInstance.destroy();
+                graficoInstance = null;
             }
 
             try {
                 graficoInstance = new Chart(ctx, {
                     type: 'pie',
                     data: {
-                        labels: labels, 
+                        labels: labels,
                         datasets: [{
-                            data: numericValores, 
+                            data: numericValores,
                             backgroundColor: [
                                 '#36A2EB', '#FFCE56', '#FF6384', '#4BC0C0', '#9966FF', '#FF9F40',
                                 '#8AC926', '#1982C4', '#F45B69', '#6A4C93', '#2ECC71', '#E74C3C',
-                                '#F39C12', '#D35400', '#C0392B' 
+                                '#F39C12', '#D35400', '#C0392B'
                             ],
-                            borderColor: 'rgba(0,0,0,0.1)', 
+                            borderColor: 'rgba(0,0,0,0.1)',
                             borderWidth: 1
                         }]
                     },
@@ -277,12 +343,14 @@
                             title: {
                                 display: true,
                                 text: titulo || 'Distribución de Fondos',
-                                color: '#FFFFFF', 
+                                color: '#FFFFFF',
                                 font: { size: 16, weight: 'bold' },
                                 padding: { top: 10, bottom: 15 }
                             },
-                            legend: { display: false }, 
-                            tooltip: { 
+                            legend: {
+                                display: false // Se usa leyenda personalizada
+                            },
+                            tooltip: {
                                 enabled: true,
                                 backgroundColor: 'rgba(0,0,0,0.85)',
                                 titleColor: '#FFFFFF', bodyColor: '#FFFFFF',
@@ -292,12 +360,16 @@
                                     label: function(context) {
                                         let tooltipLabel = '';
                                         const dataLabel = context.chart.data.labels[context.dataIndex];
-                                        const value = context.parsed; 
-                                        const total = context.dataset.data.reduce((a, b) => (parseFloat(a) || 0) + (parseFloat(b) || 0), 0);
+                                        const value = context.parsed;
+                                        // Asegurar que el dataset y los datos existen antes de calcular el total
+                                        let total = 0;
+                                        if (context.dataset && context.dataset.data && context.dataset.data.length > 0) {
+                                            total = context.dataset.data.reduce((a, b) => (parseFloat(a) || 0) + (parseFloat(b) || 0), 0);
+                                        }
 
                                         if (dataLabel) tooltipLabel = dataLabel + ': ';
                                         if (typeof value === 'number' && !isNaN(value)) {
-                                            tooltipLabel += formatCurrency(value);
+                                            tooltipLabel += formatCurrency(value); // Usar la función de formateo
                                             const percentage = total > 0 ? ((value / total) * 100).toFixed(2) + '%' : '0.00%';
                                             tooltipLabel += ' (' + percentage + ')';
                                         } else {
@@ -309,9 +381,9 @@
                             }
                         }
                     },
-                    plugins: [{ 
+                    plugins: [{ // Plugin para generar leyenda personalizada
                         id: 'customLegendPlugin',
-                        afterUpdate: function(chart) { 
+                        afterUpdate: function(chart) {
                             generateCustomLegend(chart);
                         }
                     }]
@@ -319,10 +391,24 @@
             } catch (chartError) {
                 console.error("IFRAME Error al crear la instancia de Chart.js:", chartError);
                 loaderElement.textContent = "Error crítico al generar gráfico.";
-                legendListElement.innerHTML = `<li>Error: ${chartError.message}</li>`;
+                legendListElement.innerHTML = `<li>Error al graficar: ${chartError.message}</li>`;
                 loaderElement.style.display = 'block';
+                document.getElementById('graficoTortaGithub').style.display = 'none';
             }
         });
+
+        // Mensaje inicial si no se reciben datos después de un tiempo (opcional)
+        setTimeout(() => {
+            if (!graficoInstance && loaderElement.style.display !== 'none') {
+                // Solo mostrar si no hay instancia y el loader sigue visible (o sea, no se recibieron datos válidos)
+                const currentLoaderText = loaderElement.textContent;
+                if (currentLoaderText === "Cargando datos...") { // Solo si no hay otro mensaje de error
+                   console.log("IFRAME: Timeout, no se recibieron datos de Velo.");
+                   loaderElement.textContent = "Esperando datos de Wix...";
+                   // No necesariamente un error, podría ser que Velo aún no envía.
+                }
+            }
+        }, 5000); // Esperar 5 segundos
     </script>
 </body>
 </html>
