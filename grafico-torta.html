@@ -7,195 +7,320 @@
     <style>
         body {
             margin: 0;
-            padding: 0;
-            background: transparent !important;
-            display: flex;
+            padding: 0; /* Sin padding en el body para el iframe */
+            background: transparent !important; /* Fondo transparente ESENCIAL para Wix */
+            display: flex; /* Usar flex para centrar el chartContainer si es necesario */
             align-items: center;
             justify-content: center;
             width: 100vw;
             height: 100vh;
+            box-sizing: border-box;
             font-family: Arial, sans-serif;
-            color: #ffffff; 
+            color: #ffffff; /* Color de texto por defecto, importante para el loader y leyenda */
         }
         #chartContainer {
-            display: flex; 
-            width: 98%;
-            height: 98%;
-            max-width: 750px; /* Un poco más de espacio total */
+            display: flex; /* El gráfico y la leyenda uno al lado del otro */
+            width: 100%;   /* Ocupar todo el ancho del iframe */
+            height: 100%;  /* Ocupar todo el alto del iframe */
+            max-width: 100%; /* Asegurar que no exceda el iframe */
+            /* Quitar el fondo y padding de la vista previa, ya que el body es transparente */
+            /* background-color: #34495e; */
+            /* padding: 15px; */
+            /* border-radius: 8px; */
+            /* box-shadow: 0 4px 15px rgba(0,0,0,0.2); */
         }
         #canvasWrapper {
-            flex-grow: 1; 
-            position: relative; 
-            min-width: 0; 
+            flex-grow: 1;
+            flex-basis: 60%; /* El gráfico puede tomar más o menos espacio, ajustable */
+            position: relative;
+            min-width: 0; /* Para correcto funcionamiento de flex */
+            height: 100%;
+            display: flex; /* Para centrar el canvas si es más pequeño */
+            align-items: center;
+            justify-content: center;
         }
         canvas {
             display: block;
-            width: 100%;
-            height: 100%;
+            max-width: 100%; /* Asegurar que el canvas no se desborde */
+            max-height: 100%;
+            /* width y height se establecerán por Chart.js con responsive:true y maintainAspectRatio:false */
         }
+        #legendWrapper {
+            flex-basis: 40%; /* La leyenda toma el espacio restante */
+            padding-left: 20px; /* Espacio entre gráfico y leyenda */
+            overflow-y: auto; /* Scroll si la leyenda es muy larga */
+            height: 100%;
+            color: #ffffff;
+            font-size: 13px; /* Tamaño de fuente base para la leyenda */
+            /* border-left: 1px solid #4a5568; */ /* La línea divisoria podría no verse bien en fondo transparente */
+            box-sizing: border-box; /* Incluir padding en el cálculo del ancho/alto */
+        }
+        #legendWrapper h3 { /* Título opcional para la leyenda */
+            margin-top: 5px; /* Ajustar espaciado si se usa título */
+            margin-bottom: 15px;
+            font-size: 16px;
+            /* border-bottom: 1px solid #4a5568; */
+            padding-bottom: 10px;
+            color: #ffffff; /* Asegurar color blanco */
+        }
+        #legendList {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        #legendList li {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px; /* Espacio entre ítems de leyenda */
+            padding: 4px;
+            border-radius: 3px;
+            transition: background-color 0.2s;
+            cursor: default; /* Cursor normal */
+        }
+        /* #legendList li:hover { background-color: rgba(255,255,255,0.05); } */ /* Hover puede ser confuso en iframe */
+        .legend-color-box {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            margin-right: 10px;
+            border-radius: 3px;
+            border: 1px solid rgba(255,255,255,0.5); /* Borde más visible para el cuadrito de color */
+        }
+        .legend-text {
+            flex-grow: 1; /* El texto del label toma el espacio disponible */
+            color: #ffffff; /* Asegurar color blanco */
+        }
+        .legend-amount {
+            font-weight: bold;
+            margin-left: 8px; /* Espacio antes del monto */
+            color: #ffffff; /* Asegurar color blanco */
+        }
+        .legend-percentage {
+            /* font-style: italic; */ /* El itálico puede ser difícil de leer */
+            color: #e0e0e0; /* Un blanco ligeramente menos intenso para el porcentaje */
+            margin-left: 5px;
+        }
+
         #loader {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 16px;
-            color: #ffffff; 
+            font-size: 16px; /* Tamaño del texto del loader */
+            color: #ffffff;
+            background-color: rgba(0,0,0,0.6); /* Fondo semitransparente para el loader */
+            padding: 12px 20px;
+            border-radius: 5px;
+            z-index:10;
+            text-align: center;
         }
     </style>
 </head>
 <body>
+    <!-- El título principal del gráfico se establecerá desde Chart.js, no como HTML separado aquí -->
     <div id="chartContainer">
         <div id="canvasWrapper">
-            <canvas id="graficoTorta"></canvas>
-            <div id="loader">Cargando gráfico...</div>
+            <canvas id="graficoTortaGithub"></canvas>
+            <div id="loader">Cargando datos...</div>
         </div>
+        <div id="legendWrapper">
+            <!-- <h3 id="legendTitle">Detalle de Fondos</h3> --> <!-- Título opcional, podría venir de Velo -->
+            <ul id="legendList">
+                <!-- La leyenda se generará aquí con JavaScript -->
+            </ul>
         </div>
+    </div>
 
     <script>
-        const ctx = document.getElementById('graficoTorta').getContext('2d');
+        const ctx = document.getElementById('graficoTortaGithub').getContext('2d');
         const loaderElement = document.getElementById('loader');
-        let grafico;
+        const legendListElement = document.getElementById('legendList');
+        // const legendTitleElement = document.getElementById('legendTitle'); // Si decides usar el título de leyenda HTML
+        let graficoInstance;
 
-        function formatCurrency(value, currency = 'USD') { // Asegúrate que la moneda por defecto sea la correcta para ti
-            return new Intl.NumberFormat('es-VE', { style: 'currency', currency: currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+        // Función para formatear moneda (ajusta 'es-VE' y 'USD' o la moneda que uses)
+        function formatCurrency(value, currency = 'USD') {
+             // Ejemplo: Dólares Americanos. Cambia 'en-US' y 'USD' según necesites.
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+            // Ejemplo: Euros para España.
+            // return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+            // Ejemplo: Bolívares para Venezuela (si quieres mostrar el símbolo Bs.)
+            // return new Intl.NumberFormat('es-VE', { style: 'currency', currency: 'VED', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value); // VED es el código actual
+        }
+        
+        // Función para generar la leyenda HTML personalizada
+        function generateCustomLegend(chart) {
+            legendListElement.innerHTML = ''; // Limpiar leyenda anterior
+            const data = chart.data;
+            if (!data.datasets || !data.datasets.length || !data.datasets[0].data) {
+                console.warn("Datos del dataset no disponibles para generar leyenda.");
+                return;
+            }
+            const totalGeneral = data.datasets[0].data.reduce((sum, val) => sum + parseFloat(val || 0), 0);
+
+            if (data.labels && data.labels.length && data.datasets.length) {
+                data.labels.forEach((label, i) => {
+                    const dataset = data.datasets[0];
+                    const valor = dataset.data[i] || 0; // Usar 0 si el valor no está definido
+                    const backgroundColor = dataset.backgroundColor[i];
+                    const borderColor = dataset.borderColor[i]; // Se puede usar o no para el color box
+                    const porcentaje = totalGeneral > 0 ? (parseFloat(valor) / totalGeneral * 100).toFixed(2) : "0.00";
+
+                    const listItem = document.createElement('li');
+                    
+                    const colorBox = document.createElement('span');
+                    colorBox.className = 'legend-color-box';
+                    colorBox.style.backgroundColor = backgroundColor;
+                    // colorBox.style.borderColor = borderColor; // Opcional
+
+                    const textSpan = document.createElement('span');
+                    textSpan.className = 'legend-text';
+                    textSpan.textContent = label + ": ";
+
+                    const amountSpan = document.createElement('span');
+                    amountSpan.className = 'legend-amount';
+                    amountSpan.textContent = formatCurrency(valor); // Usar la moneda configurada
+
+                    const percentageSpan = document.createElement('span');
+                    percentageSpan.className = 'legend-percentage';
+                    percentageSpan.textContent = `(${porcentaje}%)`;
+                    
+                    listItem.appendChild(colorBox);
+                    listItem.appendChild(textSpan);
+                    listItem.appendChild(amountSpan);
+                    listItem.appendChild(percentageSpan);
+                    legendListElement.appendChild(listItem);
+                });
+            }
         }
 
+        // Event listener para recibir datos desde Velo (Wix)
         window.addEventListener('message', (event) => {
-            // Opcional: Verificación de origen
-            // const allowedOrigins = ['https://TU-DOMINIO-WIX.wixsite.com', 'https://editor.wix.com', 'https://cyrusfire.github.io'];
-            // if (!allowedOrigins.includes(event.origin)) { /* ... manejo de error ... */ return; }
+            // --- Verificación de Origen (MUY RECOMENDADO EN PRODUCCIÓN) ---
+            // const allowedOrigins = ['https://TU-DOMINIO-WIX.wixsite.com', 'https://editor.wix.com'];
+            // if (!allowedOrigins.includes(event.origin) && event.origin !== 'https://cyrusfire.github.io') { // Permite tu propia GH page para pruebas locales
+            //     console.warn("Mensaje ignorado de origen no permitido:", event.origin);
+            //     loaderElement.textContent = "Error: Origen no válido.";
+            //     return;
+            // }
 
             if (event.data &&
                 typeof event.data === 'object' &&
                 Array.isArray(event.data.labels) &&
                 Array.isArray(event.data.valores)) {
 
-                const { labels, valores, titulo } = event.data;
-                const totalGeneral = valores.reduce((sum, val) => sum + parseFloat(val), 0);
+                const { labels, valores, titulo } = event.data; // 'titulo' es para el gráfico
+                // const tituloLeyenda = event.data.tituloLeyenda; // Podrías pasar un título para la leyenda también
 
-                if (labels.length === 0 || valores.length === 0 || totalGeneral === 0) { // Añadida comprobación de totalGeneral
-                    loaderElement.innerText = "No hay datos suficientes para mostrar.";
-                    if (grafico) grafico.destroy();
+                // if (tituloLeyenda && legendTitleElement) { // Si usas el h3 para el título de la leyenda
+                //    legendTitleElement.textContent = tituloLeyenda;
+                // }
+
+
+                if (labels.length === 0 || valores.length === 0) {
+                    loaderElement.textContent = "No hay datos para mostrar.";
                     loaderElement.style.display = 'block';
+                    if (graficoInstance) graficoInstance.destroy();
+                    legendListElement.innerHTML = '<li>No hay datos.</li>'; // Limpiar y mostrar mensaje en leyenda
                     return;
                 }
                 
-                loaderElement.style.display = 'none';
+                loaderElement.style.display = 'none'; 
 
-                if (grafico) {
-                    grafico.destroy();
+                if (graficoInstance) {
+                    graficoInstance.destroy();
                 }
 
-                grafico = new Chart(ctx, {
+                graficoInstance = new Chart(ctx, {
                     type: 'pie',
                     data: {
-                        labels: labels,
+                        labels: labels, 
                         datasets: [{
                             data: valores,
                             backgroundColor: [
-                                '#36A2EB', '#FFCE56', '#FF6384', '#4BC0C0', '#9966FF',
-                                '#FF9F40', '#8AC926', '#1982C4', '#F45B69', '#6A4C93',
-                                '#2ECC71', '#E74C3C', '#F1C40F', '#7F8C8D', '#D35400'
+                                '#36A2EB', '#FFCE56', '#FF6384', '#4BC0C0', '#9966FF', '#FF9F40',
+                                '#8AC926', '#1982C4', '#F45B69', '#6A4C93', '#2ECC71', '#E74C3C',
+                                '#F39C12', '#D35400', '#C0392B' // Más colores
                             ],
-                            borderColor: '#4A4A4A',
+                            borderColor: 'rgba(0,0,0,0.1)', // Un borde muy sutil para los segmentos
                             borderWidth: 1
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        layout: {
-                            padding: { top: 5, left: 5, right: 5, bottom: 5 }
-                        },
                         plugins: {
                             title: {
                                 display: true,
                                 text: titulo || 'Distribución de Fondos',
-                                color: '#FFFFFF',
+                                color: '#FFFFFF', 
                                 font: {
-                                    size: 18, // Tamaño del título un poco más grande
+                                    size: 16, // Ajusta el tamaño del título del gráfico
                                     weight: 'bold'
                                 },
                                 padding: {
-                                    top: 10,
-                                    bottom: 20 
+                                    top: 10, 
+                                    bottom: 15 
                                 }
                             },
                             legend: {
-                                display: true,
-                                position: 'right', // Leyenda a la derecha (actúa como tu lista)
-                                align: 'start', // Alinea los ítems de la leyenda al inicio (arriba) de su contenedor
-                                labels: {
-                                    color: '#FFFFFF',
-                                    boxWidth: 15, // Ancho del cuadrito de color
-                                    padding: 20,  // Espacio entre ítems de la leyenda
-                                    font: {
-                                        size: 13 // Tamaño de fuente de la leyenda aumentado
-                                    },
-                                    generateLabels: function(chart) {
-                                        const data = chart.data;
-                                        if (data.labels.length && data.datasets.length) {
-                                            return data.labels.map((label, i) => {
-                                                const meta = chart.getDatasetMeta(0);
-                                                const style = meta.controller.getStyle(i);
-                                                const valor = data.datasets[0].data[i];
-                                                // Evitar división por cero si totalGeneral es 0
-                                                const porcentaje = totalGeneral > 0 ? (parseFloat(valor) / totalGeneral * 100).toFixed(2) : "0.00";
-                                                
-                                                // AQUÍ SE CONSTRUYE EL TEXTO DE CADA ÍTEM DE LA LEYENDA/LISTA
-                                                const texto = `${label}: ${formatCurrency(valor)} (${porcentaje}%)`;
-
-                                                return {
-                                                    text: texto,
-                                                    fillStyle: style.backgroundColor,
-                                                    strokeStyle: style.borderColor,
-                                                    lineWidth: style.borderWidth,
-                                                    hidden: !chart.getDataVisibility(i),
-                                                    index: i,
-                                                    fontColor: '#FFFFFF' // Forzar color de fuente
-                                                };
-                                            });
-                                        }
-                                        return [];
-                                    }
-                                }
+                                display: false // La leyenda por defecto de Chart.js está desactivada
                             },
-                            tooltip: { // El tooltip seguirá funcionando como antes
+                            tooltip: { // Configuración de tooltips
                                 enabled: true,
                                 backgroundColor: 'rgba(0,0,0,0.85)',
                                 titleColor: '#FFFFFF',
                                 bodyColor: '#FFFFFF',
-                                titleFont: { size: 14, weight: 'bold' },
+                                titleFont: { size: 13, weight: 'bold' },
                                 bodyFont: { size: 12 },
-                                padding: 10,
+                                padding: 8,
                                 callbacks: {
                                     label: function(context) {
-                                        let label = '';
+                                        let tooltipLabel = '';
                                         const dataLabel = context.chart.data.labels[context.dataIndex];
                                         const value = context.parsed;
+                                        const total = context.dataset.data.reduce((a, b) => parseFloat(a || 0) + parseFloat(b || 0), 0);
 
                                         if (dataLabel) {
-                                            label = dataLabel + ': ';
+                                            tooltipLabel = dataLabel + ': ';
                                         }
                                         if (value !== null) {
-                                            label += formatCurrency(value);
-                                            const percentage = totalGeneral > 0 ? (value / totalGeneral * 100).toFixed(2) + '%' : '0.00%';
-                                            label += ' (' + percentage + ')';
+                                            tooltipLabel += formatCurrency(value);
+                                            const percentage = total > 0 ? (value / total * 100).toFixed(2) + '%' : '0.00%';
+                                            tooltipLabel += ' (' + percentage + ')';
                                         }
-                                        return label;
+                                        return tooltipLabel;
                                     }
                                 }
                             }
                         }
-                    }
+                    },
+                    // Plugin para generar la leyenda personalizada
+                    plugins: [{
+                        id: 'customLegendPlugin',
+                        afterUpdate: function(chart, args, options) {
+                            generateCustomLegend(chart);
+                        }
+                    }]
                 });
+
             } else {
                 console.warn("Datos recibidos para el gráfico no tienen el formato esperado o faltan:", event.data);
-                if (grafico) grafico.destroy();
-                loaderElement.innerText = "Error: Datos inválidos.";
+                if (graficoInstance) graficoInstance.destroy(); 
+                loaderElement.textContent = "Error al procesar datos.";
                 loaderElement.style.display = 'block';
+                legendListElement.innerHTML = '<li>Error al cargar datos.</li>';
             }
         });
+
+        // Mensaje inicial si no se reciben datos después de un tiempo
+        // Esto es solo para la prueba directa, en Wix los datos deberían llegar rápido.
+        // setTimeout(() => {
+        //     if (!graficoInstance && loaderElement.textContent === "Cargando datos...") {
+        //         loaderElement.textContent = "Esperando datos desde Wix...";
+        //         legendListElement.innerHTML = '<li>Esperando datos...</li>';
+        //     }
+        // }, 4000); // Espera 4 segundos
     </script>
 </body>
 </html>
