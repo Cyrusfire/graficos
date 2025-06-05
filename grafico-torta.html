@@ -192,31 +192,38 @@
         }
 
         window.addEventListener('message', (event) => {
-            console.log("Mensaje recibido en iframe:", event.data); 
-
-            // --- Verificación de Origen (DESCOMENTAR Y AJUSTAR EN PRODUCCIÓN) ---
-            // const allowedOrigins = ['https://TU-DOMINIO-WIX.wixsite.com', 'https://editor.wix.com'];
-            // if (!allowedOrigins.includes(event.origin) && event.origin !== 'https://cyrusfire.github.io') { 
-            //     console.error("Mensaje ignorado de origen no permitido:", event.origin);
-            //     loaderElement.textContent = "Error: Origen no válido.";
-            //     legendListElement.innerHTML = '<li>Error: Origen de datos no permitido.</li>';
-            //     return;
-            // }
+            // --- INICIO DE LOGS DE DEPURACIÓN ADICIONALES ---
+            console.log("IFRAME: Mensaje recibido. Origen:", event.origin);
+            console.log("IFRAME: Tipo de event.data:", typeof event.data);
+            console.log("IFRAME: Contenido de event.data:", JSON.stringify(event.data, null, 2)); // Muestra el objeto formateado
 
             if (!event.data || typeof event.data !== 'object') {
-                console.error("Error: event.data no es un objeto o es nulo.", event.data);
-                loaderElement.textContent = "Error: Datos recibidos no válidos.";
+                console.error("IFRAME ERROR: event.data no es un objeto o es nulo.", event.data);
+                loaderElement.textContent = "Error: Datos recibidos no válidos (no es objeto).";
                 legendListElement.innerHTML = '<li>Error: Formato de datos incorrecto.</li>';
                 if (graficoInstance) graficoInstance.destroy();
                 loaderElement.style.display = 'block';
                 return;
             }
 
+            // Intentar destructurar
             const { labels, valores, titulo } = event.data;
 
+            console.log("IFRAME: Después de destructurar:");
+            console.log("IFRAME: labels:", labels, "Es array:", Array.isArray(labels));
+            console.log("IFRAME: valores:", valores, "Es array:", Array.isArray(valores));
+            console.log("IFRAME: titulo:", titulo);
+            // --- FIN DE LOGS DE DEPURACIÓN ADICIONALES ---
+
+
+            // --- Verificación de Origen (DESCOMENTAR Y AJUSTAR EN PRODUCCIÓN) ---
+            // const allowedOrigins = ['https://TU-DOMINIO-WIX.wixsite.com', 'https://editor.wix.com'];
+            // if (!allowedOrigins.includes(event.origin) && event.origin !== 'https://cyrusfire.github.io') { /* ... */ }
+
+
             if (!Array.isArray(labels) || !Array.isArray(valores)) {
-                console.error("Error: 'labels' o 'valores' no son arrays.", "Labels:", labels, "Valores:", valores);
-                loaderElement.textContent = "Error: Estructura de datos incorrecta.";
+                console.error("IFRAME ERROR: 'labels' o 'valores' NO SON ARRAYS después de la destructuración.", "Labels es array:", Array.isArray(labels), "Valores es array:", Array.isArray(valores));
+                loaderElement.textContent = "Error: Estructura de datos incorrecta (no son arrays).";
                 legendListElement.innerHTML = "<li>Error: 'labels' o 'valores' no son listas.</li>";
                 if (graficoInstance) graficoInstance.destroy();
                 loaderElement.style.display = 'block';
@@ -226,14 +233,14 @@
             const numericValores = valores.map(v => {
                 const num = parseFloat(v);
                 if (isNaN(num)) {
-                    console.warn(`Valor no numérico encontrado en 'valores': '${v}'. Se reemplazará por 0.`);
+                    console.warn(`IFRAME: Valor no numérico encontrado en 'valores': '${v}'. Se reemplazará por 0.`);
                     return 0;
                 }
                 return num;
             });
 
             if (labels.length === 0 || numericValores.length === 0 || labels.length !== numericValores.length) {
-                console.warn("Advertencia: 'labels' o 'valores' están vacíos, o no coinciden en longitud.", "Labels:", labels.length, "Valores:", numericValores.length);
+                console.warn("IFRAME Advertencia: 'labels' o 'valores' están vacíos, o no coinciden en longitud.", "Labels:", labels.length, "Valores:", numericValores.length);
                 loaderElement.textContent = "No hay datos suficientes o los datos son inconsistentes.";
                 legendListElement.innerHTML = '<li>No hay datos para mostrar o son inconsistentes.</li>';
                 if (graficoInstance) graficoInstance.destroy();
@@ -274,7 +281,7 @@
                                 font: { size: 16, weight: 'bold' },
                                 padding: { top: 10, bottom: 15 }
                             },
-                            legend: { display: false }, // Usamos la leyenda HTML personalizada
+                            legend: { display: false }, 
                             tooltip: { 
                                 enabled: true,
                                 backgroundColor: 'rgba(0,0,0,0.85)',
@@ -302,7 +309,7 @@
                             }
                         }
                     },
-                    plugins: [{ // Plugin para generar la leyenda personalizada
+                    plugins: [{ 
                         id: 'customLegendPlugin',
                         afterUpdate: function(chart) { 
                             generateCustomLegend(chart);
@@ -310,7 +317,7 @@
                     }]
                 });
             } catch (chartError) {
-                console.error("Error al crear la instancia de Chart.js:", chartError);
+                console.error("IFRAME Error al crear la instancia de Chart.js:", chartError);
                 loaderElement.textContent = "Error crítico al generar gráfico.";
                 legendListElement.innerHTML = `<li>Error: ${chartError.message}</li>`;
                 loaderElement.style.display = 'block';
