@@ -125,12 +125,17 @@
         function formatCurrency(value, currency = 'USD') {
             if (typeof value !== 'number' || isNaN(value)) {
                 console.warn(`formatCurrency recibió un valor no numérico: ${value}. Se mostrará como 0.`);
-                value = 0; // Default to 0 if not a valid number
+                value = 0;
             }
-            // Asegúrate de DESCOMENTAR y AJUSTAR la línea que necesitas:
+            // ----- ¡IMPORTANTE! AJUSTA LA LÍNEA SIGUIENTE A TU MONEDA Y FORMATO REGIONAL -----
+            // Ejemplo para Dólares Americanos (EE.UU.):
             // return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-            return new Intl.NumberFormat('es-VE', { style: 'currency', currency: 'VED', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value); // EJEMPLO VED
-            // return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value); // EJEMPLO EUR
+            
+            // Ejemplo para Bolívares (Venezuela) - VED es el código actual:
+            return new Intl.NumberFormat('es-VE', { style: 'currency', currency: 'VED', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+            
+            // Ejemplo para Euros (España):
+            // return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
         }
         
         function generateCustomLegend(chart) {
@@ -142,10 +147,9 @@
                 return;
             }
 
-            // Validar que todos los valores en data.datasets[0].data son números o pueden convertirse
             const numericData = data.datasets[0].data.map(val => {
                 const num = parseFloat(val);
-                return isNaN(num) ? 0 : num; // Convertir a número, si es NaN, usar 0
+                return isNaN(num) ? 0 : num;
             });
 
             const totalGeneral = numericData.reduce((sum, val) => sum + val, 0);
@@ -153,8 +157,8 @@
             if (data.labels && data.labels.length && data.datasets.length) {
                 data.labels.forEach((label, i) => {
                     const dataset = data.datasets[0];
-                    const valor = numericData[i]; // Usar el valor numérico validado
-                    const backgroundColor = dataset.backgroundColor[i % dataset.backgroundColor.length]; // Evitar error si hay más datos que colores
+                    const valor = numericData[i]; 
+                    const backgroundColor = dataset.backgroundColor[i % dataset.backgroundColor.length]; 
                     const borderColor = dataset.borderColor; 
                     const porcentaje = totalGeneral > 0 ? ((valor / totalGeneral) * 100).toFixed(2) : "0.00";
 
@@ -165,7 +169,7 @@
 
                     const textSpan = document.createElement('span');
                     textSpan.className = 'legend-text';
-                    textSpan.textContent = (label || "Sin etiqueta") + ": "; // Manejar label undefined
+                    textSpan.textContent = (label || "Sin etiqueta") + ": "; 
 
                     const amountSpan = document.createElement('span');
                     amountSpan.className = 'legend-amount';
@@ -188,9 +192,9 @@
         }
 
         window.addEventListener('message', (event) => {
-            console.log("Mensaje recibido en iframe:", event.data); // LOG PARA VER QUÉ LLEGA
+            console.log("Mensaje recibido en iframe:", event.data); 
 
-            // --- Verificación de Origen (MUY RECOMENDADO EN PRODUCCIÓN) ---
+            // --- Verificación de Origen (DESCOMENTAR Y AJUSTAR EN PRODUCCIÓN) ---
             // const allowedOrigins = ['https://TU-DOMINIO-WIX.wixsite.com', 'https://editor.wix.com'];
             // if (!allowedOrigins.includes(event.origin) && event.origin !== 'https://cyrusfire.github.io') { 
             //     console.error("Mensaje ignorado de origen no permitido:", event.origin);
@@ -211,15 +215,14 @@
             const { labels, valores, titulo } = event.data;
 
             if (!Array.isArray(labels) || !Array.isArray(valores)) {
-                console.error("Error: 'labels' o 'valores' no son arrays.", labels, valores);
+                console.error("Error: 'labels' o 'valores' no son arrays.", "Labels:", labels, "Valores:", valores);
                 loaderElement.textContent = "Error: Estructura de datos incorrecta.";
-                legendListElement.innerHTML = "<li>Error: 'labels' o 'valores' no son listas.</li>"; // CORREGIDO AQUÍ
+                legendListElement.innerHTML = "<li>Error: 'labels' o 'valores' no son listas.</li>";
                 if (graficoInstance) graficoInstance.destroy();
                 loaderElement.style.display = 'block';
                 return;
             }
             
-            // Convertir todos los valores a números, reemplazando no números con 0
             const numericValores = valores.map(v => {
                 const num = parseFloat(v);
                 if (isNaN(num)) {
@@ -250,7 +253,7 @@
                     data: {
                         labels: labels, 
                         datasets: [{
-                            data: numericValores, // Usar los valores numéricos validados
+                            data: numericValores, 
                             backgroundColor: [
                                 '#36A2EB', '#FFCE56', '#FF6384', '#4BC0C0', '#9966FF', '#FF9F40',
                                 '#8AC926', '#1982C4', '#F45B69', '#6A4C93', '#2ECC71', '#E74C3C',
@@ -271,7 +274,7 @@
                                 font: { size: 16, weight: 'bold' },
                                 padding: { top: 10, bottom: 15 }
                             },
-                            legend: { display: false },
+                            legend: { display: false }, // Usamos la leyenda HTML personalizada
                             tooltip: { 
                                 enabled: true,
                                 backgroundColor: 'rgba(0,0,0,0.85)',
@@ -282,7 +285,7 @@
                                     label: function(context) {
                                         let tooltipLabel = '';
                                         const dataLabel = context.chart.data.labels[context.dataIndex];
-                                        const value = context.parsed; // context.parsed ya debería ser un número aquí
+                                        const value = context.parsed; 
                                         const total = context.dataset.data.reduce((a, b) => (parseFloat(a) || 0) + (parseFloat(b) || 0), 0);
 
                                         if (dataLabel) tooltipLabel = dataLabel + ': ';
@@ -299,9 +302,9 @@
                             }
                         }
                     },
-                    plugins: [{
+                    plugins: [{ // Plugin para generar la leyenda personalizada
                         id: 'customLegendPlugin',
-                        afterUpdate: function(chart) { // No se usan args ni options aquí
+                        afterUpdate: function(chart) { 
                             generateCustomLegend(chart);
                         }
                     }]
@@ -312,7 +315,6 @@
                 legendListElement.innerHTML = `<li>Error: ${chartError.message}</li>`;
                 loaderElement.style.display = 'block';
             }
-
         });
     </script>
 </body>
