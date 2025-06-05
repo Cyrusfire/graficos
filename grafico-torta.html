@@ -118,6 +118,9 @@
     </div>
 
     <script>
+        // Script Version: 4.0 - Fecha: 2025-06-05
+        console.log("IFRAME SCRIPT VERSION: 4.0 LOADED");
+
         const ctx = document.getElementById('graficoTortaGithub').getContext('2d');
         const loaderElement = document.getElementById('loader');
         const legendListElement = document.getElementById('legendList');
@@ -127,6 +130,7 @@
         function isItAnArray(value) {
             const isArrayStandard = Array.isArray(value);
             const isArrayRobust = Object.prototype.toString.call(value) === '[object Array]';
+            // console.log(`isItAnArray check for value:`, value, `Array.isArray: ${isArrayStandard}`, `Object.prototype.toString: ${isArrayRobust}`);
             return isArrayStandard || isArrayRobust;
         }
 
@@ -189,16 +193,19 @@
         }
 
         window.addEventListener('message', (event) => {
-            // **NUEVO: Filtro de Origen Estricto**
+            console.log("--------------------------------------------------");
+            console.log(`IFRAME: MENSAJE RECIBIDO - Origen: ${event.origin} - Tipo event.data: ${typeof event.data}`);
+            // console.log("IFRAME: Contenido bruto de event.data:", event.data);
+
+
             if (event.origin !== wixPageOrigin) {
-                // console.log(`IFRAME: Mensaje ignorado de origen no esperado: ${event.origin}`);
-                return; // Ignora mensajes de otros orígenes (ej. Metamask, self-messages)
+                 console.log(`IFRAME: Mensaje de origen ${event.origin} IGNORADO. Esperando origen ${wixPageOrigin}.`);
+                return; 
             }
 
-            console.log("--------------------------------------------------");
-            console.log("IFRAME: NUEVO MENSAJE RECIBIDO (Origen Verificado)");
-            console.log("IFRAME: Tipo de event.data (RAW):", typeof event.data);
-            console.log("IFRAME: Contenido de event.data (RAW):", event.data);
+            console.log("IFRAME: MENSAJE DE ORIGEN CORRECTO PROCESANDO...");
+            console.log("IFRAME: Contenido de event.data (RAW del origen correcto):", event.data);
+
 
             let dataPayload = event.data;
 
@@ -207,7 +214,7 @@
                 try {
                     dataPayload = JSON.parse(dataPayload);
                     console.log("IFRAME: JSON.parse() exitoso.");
-                    console.log("IFRAME: Contenido de dataPayload (DESPUÉS DE PARSE):", dataPayload);
+                    console.log("IFRAME: Contenido de dataPayload (DESPUÉS DE PARSE):", JSON.stringify(dataPayload, null, 2)); // Loguear como string para mejor inspección
                     if (dataPayload && typeof dataPayload === 'object') {
                         console.log("IFRAME: dataPayload.labels (directo después de parse):", dataPayload.labels);
                         console.log("IFRAME: dataPayload.valores (directo después de parse):", dataPayload.valores);
@@ -215,7 +222,8 @@
                 } catch (e) {
                     console.error("IFRAME ERROR: Falló JSON.parse(). Error:", e, "String original:", event.data);
                     loaderElement.textContent = "Error: Datos recibidos corruptos (JSON).";
-                    // ... (resto del manejo de error)
+                    if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
+                    loaderElement.style.display = 'block'; document.getElementById('graficoTortaGithub').style.display = 'none';
                     return;
                 }
             }
@@ -223,7 +231,8 @@
             if (typeof dataPayload !== 'object' || dataPayload === null) {
                 console.error("IFRAME ERROR: El payload procesado no es un objeto válido.", dataPayload);
                 loaderElement.textContent = "Error: Formato de datos no es objeto.";
-                // ... (resto del manejo de error)
+                if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
+                loaderElement.style.display = 'block'; document.getElementById('graficoTortaGithub').style.display = 'none';
                 return;
             }
 
@@ -241,14 +250,14 @@
             if (dataError) {
                 console.error("IFRAME: Error reportado desde Velo:", errorMessage);
                 loaderElement.textContent = `Error de Velo: ${errorMessage || "Desconocido"}`;
-                // ... (resto del manejo de error)
+                if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
+                loaderElement.style.display = 'block'; document.getElementById('graficoTortaGithub').style.display = 'none';
                 return;
             }
 
             if (!isItAnArray(labels) || !isItAnArray(valores)) {
                 console.error("IFRAME ERROR CRÍTICO: 'labels' o 'valores' NO SON ARRAYS (según isItAnArray).");
                 loaderElement.textContent = "Error: Estructura de datos incorrecta (no son arrays).";
-                 // ... (resto del manejo de error)
                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                 loaderElement.style.display = 'block';
                 document.getElementById('graficoTortaGithub').style.display = 'none';
@@ -260,7 +269,6 @@
             if (labels.length === 0 && numericValores.every(v => v === 0)) {
                  console.warn("IFRAME: 'labels' vacío y 'valores' son todos cero o vacíos. Mostrando mensaje de 'Sin datos'.");
                  loaderElement.textContent = titulo || "No hay datos para mostrar.";
-                 // ... (resto del manejo de estado)
                  if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                  loaderElement.style.display = 'block';
                  document.getElementById('graficoTortaGithub').style.display = 'none';
@@ -270,7 +278,6 @@
             if (labels.length !== numericValores.length) {
                 console.warn("IFRAME Advertencia: 'labels' y 'valores' no coinciden en longitud.", "Labels:", labels.length, "Valores:", numericValores.length);
                 loaderElement.textContent = "Datos inconsistentes (longitudes no coinciden).";
-                // ... (resto del manejo de error)
                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                 loaderElement.style.display = 'block';
                 document.getElementById('graficoTortaGithub').style.display = 'none';
@@ -301,7 +308,7 @@
                             borderWidth: 1
                         }]
                     },
-                    options: { /* ... opciones del gráfico ... */
+                    options: {
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
@@ -352,7 +359,6 @@
             } catch (chartError) {
                 console.error("IFRAME Error al crear Chart.js:", chartError);
                 loaderElement.textContent = "Error crítico al generar gráfico.";
-                // ... (resto del manejo de error)
                  if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                 loaderElement.style.display = 'block';
                 document.getElementById('graficoTortaGithub').style.display = 'none';
@@ -361,10 +367,11 @@
 
         setTimeout(() => {
             if (!graficoInstance && loaderElement.style.display !== 'none' && loaderElement.textContent === "Cargando datos...") {
-                console.log("IFRAME: Timeout (10s), no se recibieron datos iniciales de Velo.");
+                console.log("IFRAME: Timeout (10s), no se recibieron datos iniciales de Velo. Verifique el origen esperado y el código Velo.");
                 loaderElement.textContent = "Esperando datos de Wix...";
             }
         }, 10000);
     </script>
 </body>
 </html>
+
