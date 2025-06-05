@@ -3,307 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Distribución de Fondos</title>
+    <title>Gráfico Simplificado</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background: transparent !important;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100vw;
-            height: 100vh;
-            box-sizing: border-box;
-            font-family: Arial, sans-serif;
-            color: #ffffff;
-        }
-        #chartContainer {
-            display: flex;
-            width: 100%;
-            height: 100%;
-            max-width: 100%;
-        }
-        #canvasWrapper {
-            flex-grow: 1;
-            flex-basis: 60%;
-            position: relative;
-            min-width: 0;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        canvas {
-            display: block;
-            max-width: 100%;
-            max-height: 100%;
-        }
-        #legendWrapper {
-            flex-basis: 40%;
-            padding-left: 20px;
-            overflow-y: auto;
-            height: 100%;
-            color: #ffffff;
-            font-size: 13px;
-            box-sizing: border-box;
-        }
-        #legendWrapper h3 {
-            margin-top: 5px;
-            margin-bottom: 15px;
-            font-size: 16px;
-            padding-bottom: 10px;
-            color: #ffffff;
-        }
-        #legendList {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        #legendList li {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-            padding: 4px;
-            border-radius: 3px;
-            transition: background-color 0.2s;
-            cursor: default;
-        }
-        .legend-color-box {
-            display: inline-block;
-            width: 14px;
-            height: 14px;
-            margin-right: 10px;
-            border-radius: 3px;
-            border: 1px solid rgba(255,255,255,0.5);
-        }
-        .legend-text {
-            flex-grow: 1;
-            color: #ffffff;
-        }
-        .legend-amount {
-            font-weight: bold;
-            margin-left: 8px;
-            color: #ffffff;
-        }
-        .legend-percentage {
-            color: #e0e0e0;
-            margin-left: 5px;
-        }
-        #loader {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 16px;
-            color: #ffffff;
-            background-color: rgba(0,0,0,0.6);
-            padding: 12px 20px;
-            border-radius: 5px;
-            z-index:10;
-            text-align: center;
-        }
+        body { margin: 0; padding: 10px; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: transparent; font-family: Arial, sans-serif; color: #333; }
+        #chartContainer { width: 95%; height: 95%; max-width: 600px; max-height: 600px; position: relative; }
+        canvas { display: block; width: 100%; height: 100%; }
+        #loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 16px; color: #555; background-color: rgba(255,255,255,0.8); padding: 10px 15px; border-radius: 5px; text-align: center; }
     </style>
 </head>
 <body>
     <div id="chartContainer">
-        <div id="canvasWrapper">
-            <canvas id="graficoTortaGithub"></canvas>
-            <div id="loader">Cargando datos...</div>
-        </div>
-        <div id="legendWrapper">
-            <ul id="legendList"></ul>
-        </div>
+        <canvas id="mySimpleChart"></canvas>
+        <div id="loader">Cargando datos del gráfico...</div>
     </div>
 
     <script>
-        // Script Version: 5.0 - Fecha: 2025-06-05 
-        console.log("IFRAME SCRIPT VERSION: 5.0 LOADED");
+        // Script Version: SIMPLIFIED_1.0 - Fecha: 2025-06-05
+        console.log("IFRAME SCRIPT (SIMPLIFICADO) VERSION: 1.0 LOADED");
 
-        const ctx = document.getElementById('graficoTortaGithub').getContext('2d');
+        const canvasElement = document.getElementById('mySimpleChart');
         const loaderElement = document.getElementById('loader');
-        const legendListElement = document.getElementById('legendList');
-        let graficoInstance = null;
-        const wixPageOrigin = "https://www.cyrus-space.com"; // Tu dominio de Wix
+        let chartInstance = null;
+        const wixPageOrigin = "https://www.cyrus-space.com"; // Tu dominio de Wix - ¡VERIFICA ESTO!
 
-        function isItAnArray(value) {
-            const isArrayStandard = Array.isArray(value);
-            const isArrayRobust = Object.prototype.toString.call(value) === '[object Array]';
-            // console.log(`isItAnArray debug: Value type: ${typeof value}, isArrayStandard: ${isArrayStandard}, isArrayRobust: ${isArrayRobust}`);
-            return isArrayStandard || isArrayRobust;
-        }
-
-        function formatCurrency(value, currencyCode = 'VED', locale = 'es-VE') {
-            if (typeof value !== 'number' || isNaN(value)) {
-                value = 0;
-            }
-            try {
-                return new Intl.NumberFormat(locale, { style: 'currency', currency: currencyCode, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-            } catch (e) {
-                console.error("Error al formatear moneda. Usando formato simple:", e);
-                return `${currencyCode} ${value.toFixed(2)}`;
-            }
-        }
-
-        function generateCustomLegend(chart) {
-            legendListElement.innerHTML = '';
-            const data = chart.data;
-            if (!data || !data.datasets || !data.datasets.length || !data.datasets[0].data || !data.datasets[0].data.length) {
-                console.error("generateCustomLegend: Datos insuficientes para la leyenda.", data);
-                legendListElement.innerHTML = '<li>Error: Datos de leyenda incompletos.</li>';
-                return;
-            }
-            const numericData = data.datasets[0].data.map(val => parseFloat(val) || 0);
-            const totalGeneral = numericData.reduce((sum, val) => sum + val, 0);
-
-            if (data.labels && data.labels.length) {
-                data.labels.forEach((label, i) => {
-                    const dataset = data.datasets[0];
-                    const valor = numericData[i];
-                    const backgroundColor = dataset.backgroundColor[i % dataset.backgroundColor.length];
-                    const porcentaje = totalGeneral > 0 ? ((valor / totalGeneral) * 100).toFixed(2) : "0.00";
-
-                    const listItem = document.createElement('li');
-                    const colorBox = document.createElement('span');
-                    colorBox.className = 'legend-color-box';
-                    colorBox.style.backgroundColor = backgroundColor;
-
-                    const textSpan = document.createElement('span');
-                    textSpan.className = 'legend-text';
-                    textSpan.textContent = (label || "Sin etiqueta") + ": ";
-
-                    const amountSpan = document.createElement('span');
-                    amountSpan.className = 'legend-amount';
-                    amountSpan.textContent = formatCurrency(valor);
-
-                    const percentageSpan = document.createElement('span');
-                    percentageSpan.className = 'legend-percentage';
-                    percentageSpan.textContent = `(${porcentaje}%)`;
-
-                    listItem.appendChild(colorBox);
-                    listItem.appendChild(textSpan);
-                    listItem.appendChild(amountSpan);
-                    listItem.appendChild(percentageSpan);
-                    legendListElement.appendChild(listItem);
-                });
-            } else {
-                legendListElement.innerHTML = '<li>No hay etiquetas para la leyenda.</li>';
-            }
+        function isItReallyAnArray(value) {
+            const standardCheck = Array.isArray(value);
+            const robustCheck = Object.prototype.toString.call(value) === '[object Array]';
+            console.log(`isItReallyAnArray Check: Value:`, value, `Array.isArray: ${standardCheck}, Object.prototype.toString: ${robustCheck}`);
+            return standardCheck || robustCheck;
         }
 
         window.addEventListener('message', (event) => {
             console.log("--------------------------------------------------");
-            console.log(`IFRAME: MENSAJE RECIBIDO - Origen: ${event.origin} - Tipo event.data: ${typeof event.data}`);
+            console.log(`IFRAME (SIMPLIFICADO): MENSAJE RECIBIDO - Origen: ${event.origin} - Tipo event.data: ${typeof event.data}`);
             
             if (event.origin !== wixPageOrigin) {
-                 console.log(`IFRAME: Mensaje de origen ${event.origin} IGNORADO. Esperando origen ${wixPageOrigin}.`);
+                 console.log(`IFRAME (SIMPLIFICADO): Mensaje de origen ${event.origin} IGNORADO. Esperando ${wixPageOrigin}.`);
                 return; 
             }
 
-            console.log("IFRAME: MENSAJE DE ORIGEN CORRECTO PROCESANDO...");
-            console.log("IFRAME: Contenido de event.data (RAW del origen correcto):", event.data);
+            console.log("IFRAME (SIMPLIFICADO): MENSAJE DE ORIGEN CORRECTO PROCESANDO...");
+            console.log("IFRAME (SIMPLIFICADO): Contenido de event.data (RAW):", event.data);
 
             let dataPayload = event.data;
 
             if (typeof dataPayload === 'string') {
-                console.log("IFRAME: event.data es un string. Intentando JSON.parse().");
+                console.log("IFRAME (SIMPLIFICADO): event.data es un string. Intentando JSON.parse().");
                 try {
                     dataPayload = JSON.parse(dataPayload);
-                    console.log("IFRAME: JSON.parse() exitoso.");
-                    console.log("IFRAME: Contenido de dataPayload (DESPUÉS DE PARSE):", JSON.stringify(dataPayload, null, 2));
+                    console.log("IFRAME (SIMPLIFICADO): JSON.parse() exitoso.");
+                    console.log("IFRAME (SIMPLIFICADO): dataPayload (DESPUÉS DE PARSE):", JSON.stringify(dataPayload, null, 2));
                 } catch (e) {
-                    console.error("IFRAME ERROR: Falló JSON.parse(). Error:", e, "String original:", event.data);
-                    loaderElement.textContent = "Error: Datos recibidos corruptos (JSON).";
-                    if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
-                    loaderElement.style.display = 'block'; document.getElementById('graficoTortaGithub').style.display = 'none';
+                    console.error("IFRAME (SIMPLIFICADO) ERROR: Falló JSON.parse(). Error:", e);
+                    loaderElement.textContent = "Error: Datos JSON corruptos.";
                     return;
                 }
             }
 
             if (typeof dataPayload !== 'object' || dataPayload === null) {
-                console.error("IFRAME ERROR: El payload procesado no es un objeto válido.", dataPayload);
-                loaderElement.textContent = "Error: Formato de datos no es objeto.";
-                if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
-                loaderElement.style.display = 'block'; document.getElementById('graficoTortaGithub').style.display = 'none';
+                console.error("IFRAME (SIMPLIFICADO) ERROR: Payload no es un objeto válido.", dataPayload);
+                loaderElement.textContent = "Error: Payload no es objeto.";
                 return;
             }
 
-            // Acceder a las propiedades directamente desde dataPayload para las validaciones y uso
             const pLabels = dataPayload.labels;
             const pValores = dataPayload.valores;
             const pTitulo = dataPayload.titulo;
-            const pDataError = dataPayload.error;
-            const pErrorMessage = dataPayload.message;
 
-            console.log("IFRAME: ---- Verificación de Propiedades Directas del Payload ----");
-            console.log("IFRAME: dataPayload.labels (contenido):", pLabels);
-            console.log("IFRAME: isItAnArray(dataPayload.labels):", isItAnArray(pLabels));
-            console.log("IFRAME: dataPayload.valores (contenido):", pValores);
-            console.log("IFRAME: isItAnArray(dataPayload.valores):", isItAnArray(pValores));
-            console.log("IFRAME: ----------------------------------------------------");
-            console.log("IFRAME: dataPayload.titulo:", pTitulo);
+            console.log("IFRAME (SIMPLIFICADO): ---- Verificación de Propiedades ----");
+            console.log("IFRAME (SIMPLIFICADO): dataPayload.labels:", pLabels);
+            console.log("IFRAME (SIMPLIFICADO): isItReallyAnArray(dataPayload.labels):", isItReallyAnArray(pLabels));
+            console.log("IFRAME (SIMPLIFICADO): dataPayload.valores:", pValores);
+            console.log("IFRAME (SIMPLIFICADO): isItReallyAnArray(dataPayload.valores):", isItReallyAnArray(pValores));
+            console.log("IFRAME (SIMPLIFICADO): dataPayload.titulo:", pTitulo);
+            console.log("IFRAME (SIMPLIFICADO): ------------------------------------");
 
-
-            if (pDataError) {
-                console.error("IFRAME: Error reportado desde Velo:", pErrorMessage);
-                loaderElement.textContent = `Error de Velo: ${pErrorMessage || "Desconocido"}`;
-                if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
-                loaderElement.style.display = 'block'; document.getElementById('graficoTortaGithub').style.display = 'none';
+            if (dataPayload.error) {
+                console.error("IFRAME (SIMPLIFICADO): Error desde Velo:", dataPayload.message);
+                loaderElement.textContent = `Error Velo: ${dataPayload.message || 'Desconocido'}`;
                 return;
             }
 
-            if (!isItAnArray(pLabels) || !isItAnArray(pValores)) {
-                console.error("IFRAME ERROR CRÍTICO: dataPayload.labels o dataPayload.valores NO SON ARRAYS.");
-                loaderElement.textContent = "Error: Estructura de datos incorrecta (no son arrays).";
-                if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
-                loaderElement.style.display = 'block';
-                document.getElementById('graficoTortaGithub').style.display = 'none';
+            if (!isItReallyAnArray(pLabels) || !isItReallyAnArray(pValores)) {
+                console.error("IFRAME (SIMPLIFICADO) ERROR CRÍTICO: labels o valores NO SON ARRAYS.");
+                loaderElement.textContent = "Error: Estructura de datos ('labels'/'valores' no son arrays).";
                 return;
             }
-
-            // Usar pLabels y pValores a partir de aquí
-            const numericValores = pValores.map(v => parseFloat(v) || 0);
-
-            if (pLabels.length === 0 && numericValores.every(v => v === 0)) {
-                 console.warn("IFRAME: pLabels vacío y numericValores son todos cero o vacíos.");
+            
+            if (pLabels.length === 0) {
+                console.warn("IFRAME (SIMPLIFICADO): No hay etiquetas para mostrar.");
                  loaderElement.textContent = pTitulo || "No hay datos para mostrar.";
-                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
-                 loaderElement.style.display = 'block';
-                 document.getElementById('graficoTortaGithub').style.display = 'none';
+                 if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
                  return;
             }
 
-            if (pLabels.length !== numericValores.length) {
-                console.warn("IFRAME Advertencia: Longitudes de pLabels y numericValores no coinciden.", "Labels:", pLabels.length, "Valores:", numericValores.length);
-                loaderElement.textContent = "Datos inconsistentes (longitudes no coinciden).";
-                if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
-                loaderElement.style.display = 'block';
-                document.getElementById('graficoTortaGithub').style.display = 'none';
-                return;
-            }
 
             loaderElement.style.display = 'none';
-            document.getElementById('graficoTortaGithub').style.display = 'block';
+            canvasElement.style.display = 'block';
 
-            if (graficoInstance) {
-                graficoInstance.destroy();
-                graficoInstance = null;
+            if (chartInstance) {
+                chartInstance.destroy();
+                chartInstance = null;
             }
 
             try {
-                graficoInstance = new Chart(ctx, {
+                chartInstance = new Chart(canvasElement.getContext('2d'), {
                     type: 'pie',
                     data: {
-                        labels: pLabels, // Usar pLabels
+                        labels: pLabels,
                         datasets: [{
-                            data: numericValores, // Usar numericValores (derivado de pValores)
-                            backgroundColor: [
-                                '#36A2EB', '#FFCE56', '#FF6384', '#4BC0C0', '#9966FF', '#FF9F40',
-                                '#8AC926', '#1982C4', '#F45B69', '#6A4C93', '#2ECC71', '#E74C3C',
-                                '#F39C12', '#D35400', '#C0392B'
+                            label: pTitulo || 'Dataset',
+                            data: pValores,
+                            backgroundColor: [ // Colores básicos para simplificar
+                                'rgba(255, 99, 132, 0.7)',
+                                'rgba(54, 162, 235, 0.7)',
+                                'rgba(255, 206, 86, 0.7)',
+                                'rgba(75, 192, 192, 0.7)',
+                                'rgba(153, 102, 255, 0.7)',
+                                'rgba(255, 159, 64, 0.7)'
                             ],
-                            borderColor: 'rgba(0,0,0,0.1)',
+                            borderColor: [
+                                'rgba(255, 99, 132, 1)',
+                                'rgba(54, 162, 235, 1)',
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(75, 192, 192, 1)',
+                                'rgba(153, 102, 255, 1)',
+                                'rgba(255, 159, 64, 1)'
+                            ],
                             borderWidth: 1
                         }]
                     },
@@ -313,63 +140,31 @@
                         plugins: {
                             title: {
                                 display: true,
-                                text: pTitulo || 'Distribución de Fondos', // Usar pTitulo
-                                color: '#FFFFFF',
-                                font: { size: 16, weight: 'bold' },
-                                padding: { top: 10, bottom: 15 }
+                                text: pTitulo || 'Gráfico de Distribución',
+                                font: { size: 16 }
                             },
-                            legend: { display: false },
-                            tooltip: {
-                                enabled: true,
-                                backgroundColor: 'rgba(0,0,0,0.85)',
-                                titleColor: '#FFFFFF', bodyColor: '#FFFFFF',
-                                titleFont: { size: 13, weight: 'bold' }, bodyFont: { size: 12 },
-                                padding: 8,
-                                callbacks: {
-                                    label: function(context) {
-                                        let tooltipLabel = '';
-                                        const dataLabel = context.chart.data.labels[context.dataIndex]; // Viene de pLabels
-                                        const value = context.parsed;
-                                        let total = 0;
-                                        if (context.dataset && context.dataset.data && context.dataset.data.length > 0) {
-                                            total = context.dataset.data.reduce((a, b) => (parseFloat(a) || 0) + (parseFloat(b) || 0), 0);
-                                        }
-                                        if (dataLabel) tooltipLabel = dataLabel + ': ';
-                                        if (typeof value === 'number' && !isNaN(value)) {
-                                            tooltipLabel += formatCurrency(value);
-                                            const percentage = total > 0 ? ((value / total) * 100).toFixed(2) + '%' : '0.00%';
-                                            tooltipLabel += ' (' + percentage + ')';
-                                        } else {
-                                            tooltipLabel += "Dato no disponible";
-                                        }
-                                        return tooltipLabel;
-                                    }
-                                }
+                            legend: {
+                                display: true, // Leyenda simple por defecto de Chart.js
+                                position: 'top',
                             }
                         }
-                    },
-                    plugins: [{
-                        id: 'customLegendPlugin',
-                        afterUpdate: function(chart) {
-                            generateCustomLegend(chart);
-                        }
-                    }]
+                    }
                 });
+                console.log("IFRAME (SIMPLIFICADO): Gráfico creado/actualizado exitosamente.");
             } catch (chartError) {
-                console.error("IFRAME Error al crear Chart.js:", chartError);
-                loaderElement.textContent = "Error crítico al generar gráfico.";
-                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
+                console.error("IFRAME (SIMPLIFICADO) Error al crear Chart.js:", chartError);
+                loaderElement.textContent = "Error al generar gráfico.";
                 loaderElement.style.display = 'block';
-                document.getElementById('graficoTortaGithub').style.display = 'none';
+                canvasElement.style.display = 'none';
             }
         });
 
         setTimeout(() => {
-            if (!graficoInstance && loaderElement.style.display !== 'none' && loaderElement.textContent === "Cargando datos...") {
-                console.log("IFRAME: Timeout (12s), no se recibieron datos válidos de Velo. Verifique el origen esperado y el código Velo.");
-                loaderElement.textContent = "Esperando datos de Wix...";
+            if (!chartInstance && loaderElement.style.display !== 'none' && loaderElement.textContent.startsWith("Cargando datos")) {
+                console.log("IFRAME (SIMPLIFICADO): Timeout (10s). No se recibieron datos válidos de Velo.");
+                loaderElement.textContent = "Esperando datos de Wix... (Timeout)";
             }
-        }, 12000); // Aumentado un poco más el timeout
+        }, 10000);
     </script>
 </body>
 </html>
