@@ -113,7 +113,6 @@
             <div id="loader">Cargando datos...</div>
         </div>
         <div id="legendWrapper">
-            <!-- El título de la leyenda se puede añadir aquí si se desea o manejarlo dinámicamente -->
             <ul id="legendList"></ul>
         </div>
     </div>
@@ -122,9 +121,9 @@
         const ctx = document.getElementById('graficoTortaGithub').getContext('2d');
         const loaderElement = document.getElementById('loader');
         const legendListElement = document.getElementById('legendList');
-        let graficoInstance;
+        let graficoInstance = null;
 
-        // Función para formatear moneda (ajustada para Bolívares por defecto según tu código original)
+        // Función para formatear moneda
         function formatCurrency(value, currencyCode = 'VED', locale = 'es-VE') {
             if (typeof value !== 'number' || isNaN(value)) {
                 console.warn(`formatCurrency recibió un valor no numérico: ${value}. Se mostrará como 0.`);
@@ -134,42 +133,27 @@
                 return new Intl.NumberFormat(locale, { style: 'currency', currency: currencyCode, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
             } catch (e) {
                 console.error("Error al formatear moneda. Usando formato simple:", e);
-                // Fallback a un formato simple si Intl no está disponible o falla con el código/locale
                 return `${currencyCode} ${value.toFixed(2)}`;
             }
         }
 
         // Función para generar la leyenda personalizada
         function generateCustomLegend(chart) {
-            legendListElement.innerHTML = ''; // Limpiar leyenda existente
+            legendListElement.innerHTML = '';
             const data = chart.data;
-
-            if (!data.datasets || !data.datasets.length || !data.datasets[0].data || !data.datasets[0].data.length) {
-                console.error("generateCustomLegend: Faltan datasets o datos en el dataset.");
-                legendListElement.innerHTML = '<li>Error al generar leyenda: datos incompletos.</li>';
+            if (!data || !data.datasets || !data.datasets.length || !data.datasets[0].data || !data.datasets[0].data.length) {
+                console.error("generateCustomLegend: Datos insuficientes para la leyenda.", data);
+                legendListElement.innerHTML = '<li>Error: Datos de leyenda incompletos.</li>';
                 return;
             }
-
-            const numericData = data.datasets[0].data.map(val => {
-                const num = parseFloat(val);
-                return isNaN(num) ? 0 : num;
-            });
-
+            const numericData = data.datasets[0].data.map(val => parseFloat(val) || 0);
             const totalGeneral = numericData.reduce((sum, val) => sum + val, 0);
 
-            if (data.labels && data.labels.length && data.datasets.length) {
-                // Crear un título para la leyenda si es necesario
-                // const legendTitleElement = document.getElementById('legendTitle'); // Asumiendo que tienes un h3 con id="legendTitle"
-                // if(legendTitleElement && chart.options.plugins.title.text) {
-                //     legendTitleElement.textContent = chart.options.plugins.title.text; // o un texto específico para la leyenda
-                // }
-
-
+            if (data.labels && data.labels.length) {
                 data.labels.forEach((label, i) => {
                     const dataset = data.datasets[0];
                     const valor = numericData[i];
                     const backgroundColor = dataset.backgroundColor[i % dataset.backgroundColor.length];
-                    // const borderColor = dataset.borderColor; // No usado directamente en esta leyenda
                     const porcentaje = totalGeneral > 0 ? ((valor / totalGeneral) * 100).toFixed(2) : "0.00";
 
                     const listItem = document.createElement('li');
@@ -183,7 +167,7 @@
 
                     const amountSpan = document.createElement('span');
                     amountSpan.className = 'legend-amount';
-                    amountSpan.textContent = formatCurrency(valor); // Usar la función de formateo
+                    amountSpan.textContent = formatCurrency(valor);
 
                     const percentageSpan = document.createElement('span');
                     percentageSpan.className = 'legend-percentage';
@@ -196,43 +180,34 @@
                     legendListElement.appendChild(listItem);
                 });
             } else {
-                console.warn("generateCustomLegend: Faltan labels o datasets para generar leyenda.");
                 legendListElement.innerHTML = '<li>No hay etiquetas para la leyenda.</li>';
             }
         }
 
         // Event listener para mensajes de Wix
         window.addEventListener('message', (event) => {
-            // --- Medida de seguridad: Verificar el origen del mensaje (DESCOMENTAR Y AJUSTAR EN PRODUCCIÓN) ---
-            // const trustedOrigins = ['https://TU-DOMINIO-WIX.wixsite.com', 'https://editor.wix.com', 'https://TU-DOMINIO-GITHUB-PAGES.github.io'];
-            // if (!trustedOrigins.includes(event.origin)) {
+            console.log("IFRAME: Mensaje recibido. Origen:", event.origin);
+            console.log("IFRAME: Tipo de event.data (RAW):", typeof event.data);
+            console.log("IFRAME: Contenido de event.data (RAW):", event.data);
+
+            // --- Medida de seguridad: Verificar el origen (DESCOMENTAR Y AJUSTAR EN PRODUCCIÓN) ---
+            // const trustedOrigins = ['https://TU-SITIO-WIX.wixsite.com', 'https://editor.wix.com', 'https://TU-USUARIO.github.io'];
+            // if (!trustedOrigins.some(origin => event.origin.startsWith(origin))) {
             //     console.warn("IFRAME: Mensaje de origen no confiable ignorado:", event.origin);
             //     return;
             // }
 
-            console.log("IFRAME: Mensaje recibido. Origen:", event.origin);
-            let receivedData = event.data; // Usar una variable mutable
+            let dataPayload = event.data;
 
-            // --- INICIO DE LOGS DE DEPURACIÓN ADICIONALES ---
-            console.log("IFRAME: Tipo de event.data (original):", typeof event.data);
-            // Intentar stringify con cuidado por si es un objeto complejo o circular no esperado
-            try {
-                console.log("IFRAME: Contenido de event.data (original como string):", JSON.stringify(event.data, null, 2));
-            } catch (e) {
-                console.log("IFRAME: No se pudo hacer JSON.stringify de event.data (original):", event.data);
-            }
-            // --- FIN DE LOGS DE DEPURACIÓN ADICIONALES ---
-
-            // **MEJORA**: Si event.data es un string, intentar parsearlo como JSON.
-            // Esto es crucial para algunos navegadores (como Edge en ciertos casos) que pueden stringify el payload.
-            if (typeof receivedData === 'string') {
+            if (typeof dataPayload === 'string') {
+                console.log("IFRAME: event.data es un string. Intentando JSON.parse().");
                 try {
-                    receivedData = JSON.parse(receivedData);
-                    console.log("IFRAME: event.data fue parseado de string a objeto:", receivedData);
+                    dataPayload = JSON.parse(dataPayload);
+                    console.log("IFRAME: JSON.parse() exitoso. Payload:", dataPayload);
                 } catch (e) {
-                    console.error("IFRAME ERROR: event.data es un string pero no pudo ser parseado como JSON.", e, "Data original:", event.data);
-                    loaderElement.textContent = "Error: Datos recibidos corruptos (no es JSON).";
-                    legendListElement.innerHTML = '<li>Error: Formato de datos ilegible.</li>';
+                    console.error("IFRAME ERROR: Falló JSON.parse(). Error:", e, "String original:", event.data);
+                    loaderElement.textContent = "Error: Datos recibidos corruptos.";
+                    legendListElement.innerHTML = '<li>Error: Datos ilegibles.</li>';
                     if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                     loaderElement.style.display = 'block';
                     document.getElementById('graficoTortaGithub').style.display = 'none';
@@ -240,59 +215,47 @@
                 }
             }
 
-            // Verificar si receivedData es un objeto y tiene las propiedades esperadas
-            if (!receivedData || typeof receivedData !== 'object') {
-                console.error("IFRAME ERROR: `receivedData` (después de posible parseo) no es un objeto o es nulo.", receivedData);
-                loaderElement.textContent = "Error: Datos recibidos no válidos (no es objeto).";
-                legendListElement.innerHTML = '<li>Error: Formato de datos incorrecto.</li>';
+            if (typeof dataPayload !== 'object' || dataPayload === null) {
+                console.error("IFRAME ERROR: El payload procesado no es un objeto válido.", dataPayload);
+                loaderElement.textContent = "Error: Formato de datos no válido.";
+                legendListElement.innerHTML = '<li>Error: Datos no son un objeto.</li>';
                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                 loaderElement.style.display = 'block';
                 document.getElementById('graficoTortaGithub').style.display = 'none';
                 return;
             }
 
-            // Ahora destructurar desde `receivedData` que ya sabemos que es un objeto (o debería serlo)
-            const { labels, valores, titulo, error: dataError, message: errorMessage } = receivedData;
+            const { labels, valores, titulo, error: dataError, message: errorMessage } = dataPayload;
 
-            // Log después de la destructuración
-            console.log("IFRAME: Después de destructurar `receivedData`:");
-            console.log("IFRAME: labels:", labels, "Es array:", Array.isArray(labels));
-            console.log("IFRAME: valores:", valores, "Es array:", Array.isArray(valores));
-            console.log("IFRAME: titulo:", titulo);
+            console.log("IFRAME: Datos destructurados -> labels:", labels, "(es array:", Array.isArray(labels), ")");
+            console.log("IFRAME: Datos destructurados -> valores:", valores, "(es array:", Array.isArray(valores), ")");
+            console.log("IFRAME: Datos destructurados -> titulo:", titulo);
+
             if (dataError) {
                 console.error("IFRAME: Error reportado desde Velo:", errorMessage);
-                loaderElement.textContent = `Error de Velo: ${errorMessage || "Error desconocido"}`;
-                legendListElement.innerHTML = `<li>Error al cargar datos: ${errorMessage || "Revisar consola Velo"}</li>`;
-                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
-                loaderElement.style.display = 'block';
-                document.getElementById('graficoTortaGithub').style.display = 'none';
-                return;
-            }
-
-
-            // Validar que labels y valores sean arrays
-            if (!Array.isArray(labels) || !Array.isArray(valores)) {
-                console.error("IFRAME ERROR: 'labels' o 'valores' NO SON ARRAYS después de la destructuración.", "Labels:", labels, "Valores:", valores);
-                loaderElement.textContent = "Error: Estructura de datos incorrecta (no son arrays).";
-                legendListElement.innerHTML = "<li>Error: 'labels' o 'valores' no son listas.</li>";
+                loaderElement.textContent = `Error de Velo: ${errorMessage || "Desconocido"}`;
+                legendListElement.innerHTML = `<li>Error Velo: ${errorMessage || "Ver consola"}</li>`;
                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                 loaderElement.style.display = 'block';
                 document.getElementById('graficoTortaGithub').style.display = 'none';
                 return;
             }
 
-            const numericValores = valores.map(v => {
-                const num = parseFloat(v);
-                if (isNaN(num)) {
-                    console.warn(`IFRAME: Valor no numérico encontrado en 'valores': '${v}'. Se reemplazará por 0.`);
-                    return 0;
-                }
-                return num;
-            });
+            if (!Array.isArray(labels) || !Array.isArray(valores)) {
+                console.error("IFRAME ERROR CRÍTICO: 'labels' o 'valores' NO SON ARRAYS.", "Tipo labels:", typeof labels, "Tipo valores:", typeof valores);
+                loaderElement.textContent = "Error: Estructura de datos incorrecta (no son arrays).";
+                legendListElement.innerHTML = "<li>Error: 'labels' o 'valores' deben ser listas.</li>";
+                if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
+                loaderElement.style.display = 'block';
+                document.getElementById('graficoTortaGithub').style.display = 'none';
+                return;
+            }
 
-            if (labels.length === 0 && numericValores.length === 0) {
-                 console.warn("IFRAME Advertencia: 'labels' y 'valores' están vacíos. Mostrando mensaje de 'Sin datos'.");
-                 loaderElement.textContent = titulo || "No hay datos para mostrar."; // Usar título si viene o mensaje genérico
+            const numericValores = valores.map(v => parseFloat(v) || 0);
+
+            if (labels.length === 0 && numericValores.every(v => v === 0)) {
+                 console.warn("IFRAME: 'labels' vacío y 'valores' son todos cero o vacíos. Mostrando mensaje de 'Sin datos'.");
+                 loaderElement.textContent = titulo || "No hay datos para mostrar.";
                  legendListElement.innerHTML = '<li>No hay datos disponibles.</li>';
                  if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                  loaderElement.style.display = 'block';
@@ -300,11 +263,10 @@
                  return;
             }
 
-
             if (labels.length !== numericValores.length) {
                 console.warn("IFRAME Advertencia: 'labels' y 'valores' no coinciden en longitud.", "Labels:", labels.length, "Valores:", numericValores.length);
                 loaderElement.textContent = "Datos inconsistentes (longitudes no coinciden).";
-                legendListElement.innerHTML = '<li>Error: Inconsistencia en los datos recibidos.</li>';
+                legendListElement.innerHTML = '<li>Error: Inconsistencia en datos.</li>';
                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                 loaderElement.style.display = 'block';
                 document.getElementById('graficoTortaGithub').style.display = 'none';
@@ -313,7 +275,6 @@
 
             loaderElement.style.display = 'none';
             document.getElementById('graficoTortaGithub').style.display = 'block';
-
 
             if (graficoInstance) {
                 graficoInstance.destroy();
@@ -347,9 +308,7 @@
                                 font: { size: 16, weight: 'bold' },
                                 padding: { top: 10, bottom: 15 }
                             },
-                            legend: {
-                                display: false // Se usa leyenda personalizada
-                            },
+                            legend: { display: false },
                             tooltip: {
                                 enabled: true,
                                 backgroundColor: 'rgba(0,0,0,0.85)',
@@ -361,15 +320,13 @@
                                         let tooltipLabel = '';
                                         const dataLabel = context.chart.data.labels[context.dataIndex];
                                         const value = context.parsed;
-                                        // Asegurar que el dataset y los datos existen antes de calcular el total
                                         let total = 0;
                                         if (context.dataset && context.dataset.data && context.dataset.data.length > 0) {
                                             total = context.dataset.data.reduce((a, b) => (parseFloat(a) || 0) + (parseFloat(b) || 0), 0);
                                         }
-
                                         if (dataLabel) tooltipLabel = dataLabel + ': ';
                                         if (typeof value === 'number' && !isNaN(value)) {
-                                            tooltipLabel += formatCurrency(value); // Usar la función de formateo
+                                            tooltipLabel += formatCurrency(value);
                                             const percentage = total > 0 ? ((value / total) * 100).toFixed(2) + '%' : '0.00%';
                                             tooltipLabel += ' (' + percentage + ')';
                                         } else {
@@ -381,7 +338,7 @@
                             }
                         }
                     },
-                    plugins: [{ // Plugin para generar leyenda personalizada
+                    plugins: [{
                         id: 'customLegendPlugin',
                         afterUpdate: function(chart) {
                             generateCustomLegend(chart);
@@ -389,26 +346,22 @@
                     }]
                 });
             } catch (chartError) {
-                console.error("IFRAME Error al crear la instancia de Chart.js:", chartError);
+                console.error("IFRAME Error al crear Chart.js:", chartError);
                 loaderElement.textContent = "Error crítico al generar gráfico.";
-                legendListElement.innerHTML = `<li>Error al graficar: ${chartError.message}</li>`;
+                legendListElement.innerHTML = `<li>Error gráfico: ${chartError.message}</li>`;
+                if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                 loaderElement.style.display = 'block';
                 document.getElementById('graficoTortaGithub').style.display = 'none';
             }
         });
 
-        // Mensaje inicial si no se reciben datos después de un tiempo (opcional)
+        // Mensaje inicial si no se reciben datos
         setTimeout(() => {
-            if (!graficoInstance && loaderElement.style.display !== 'none') {
-                // Solo mostrar si no hay instancia y el loader sigue visible (o sea, no se recibieron datos válidos)
-                const currentLoaderText = loaderElement.textContent;
-                if (currentLoaderText === "Cargando datos...") { // Solo si no hay otro mensaje de error
-                   console.log("IFRAME: Timeout, no se recibieron datos de Velo.");
-                   loaderElement.textContent = "Esperando datos de Wix...";
-                   // No necesariamente un error, podría ser que Velo aún no envía.
-                }
+            if (!graficoInstance && loaderElement.style.display !== 'none' && loaderElement.textContent === "Cargando datos...") {
+                console.log("IFRAME: Timeout, no se recibieron datos iniciales de Velo.");
+                loaderElement.textContent = "Esperando datos de Wix...";
             }
-        }, 5000); // Esperar 5 segundos
+        }, 7000); // Aumentado el timeout a 7 segundos
     </script>
 </body>
 </html>
