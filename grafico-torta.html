@@ -123,10 +123,16 @@
         const legendListElement = document.getElementById('legendList');
         let graficoInstance = null;
 
-        // Función para formatear moneda
+        function isItAnArray(value) {
+            const isArrayStandard = Array.isArray(value);
+            const isArrayRobust = Object.prototype.toString.call(value) === '[object Array]';
+            // console.log(`isItAnArray check for value:`, value, `Array.isArray: ${isArrayStandard}`, `Object.prototype.toString: ${isArrayRobust}`);
+            return isArrayStandard || isArrayRobust; // Consider it an array if either check passes
+        }
+
         function formatCurrency(value, currencyCode = 'VED', locale = 'es-VE') {
             if (typeof value !== 'number' || isNaN(value)) {
-                console.warn(`formatCurrency recibió un valor no numérico: ${value}. Se mostrará como 0.`);
+                // console.warn(`formatCurrency recibió un valor no numérico: ${value}. Se mostrará como 0.`);
                 value = 0;
             }
             try {
@@ -137,7 +143,6 @@
             }
         }
 
-        // Función para generar la leyenda personalizada
         function generateCustomLegend(chart) {
             legendListElement.innerHTML = '';
             const data = chart.data;
@@ -184,18 +189,12 @@
             }
         }
 
-        // Event listener para mensajes de Wix
         window.addEventListener('message', (event) => {
-            console.log("IFRAME: Mensaje recibido. Origen:", event.origin);
+            console.log("--------------------------------------------------");
+            console.log("IFRAME: NUEVO MENSAJE RECIBIDO");
+            console.log("IFRAME: Origen del mensaje:", event.origin);
             console.log("IFRAME: Tipo de event.data (RAW):", typeof event.data);
             console.log("IFRAME: Contenido de event.data (RAW):", event.data);
-
-            // --- Medida de seguridad: Verificar el origen (DESCOMENTAR Y AJUSTAR EN PRODUCCIÓN) ---
-            // const trustedOrigins = ['https://TU-SITIO-WIX.wixsite.com', 'https://editor.wix.com', 'https://TU-USUARIO.github.io'];
-            // if (!trustedOrigins.some(origin => event.origin.startsWith(origin))) {
-            //     console.warn("IFRAME: Mensaje de origen no confiable ignorado:", event.origin);
-            //     return;
-            // }
 
             let dataPayload = event.data;
 
@@ -203,11 +202,17 @@
                 console.log("IFRAME: event.data es un string. Intentando JSON.parse().");
                 try {
                     dataPayload = JSON.parse(dataPayload);
-                    console.log("IFRAME: JSON.parse() exitoso. Payload:", dataPayload);
+                    console.log("IFRAME: JSON.parse() exitoso.");
+                    console.log("IFRAME: Contenido de dataPayload (DESPUÉS DE PARSE):", dataPayload);
+                    // Inspeccionar las propiedades clave directamente del payload parseado
+                    if (dataPayload && typeof dataPayload === 'object') {
+                        console.log("IFRAME: dataPayload.labels (directo):", dataPayload.labels);
+                        console.log("IFRAME: dataPayload.valores (directo):", dataPayload.valores);
+                    }
                 } catch (e) {
                     console.error("IFRAME ERROR: Falló JSON.parse(). Error:", e, "String original:", event.data);
-                    loaderElement.textContent = "Error: Datos recibidos corruptos.";
-                    legendListElement.innerHTML = '<li>Error: Datos ilegibles.</li>';
+                    loaderElement.textContent = "Error: Datos recibidos corruptos (JSON).";
+                    legendListElement.innerHTML = '<li>Error: Datos JSON ilegibles.</li>';
                     if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                     loaderElement.style.display = 'block';
                     document.getElementById('graficoTortaGithub').style.display = 'none';
@@ -217,19 +222,32 @@
 
             if (typeof dataPayload !== 'object' || dataPayload === null) {
                 console.error("IFRAME ERROR: El payload procesado no es un objeto válido.", dataPayload);
-                loaderElement.textContent = "Error: Formato de datos no válido.";
-                legendListElement.innerHTML = '<li>Error: Datos no son un objeto.</li>';
+                loaderElement.textContent = "Error: Formato de datos no es objeto.";
+                legendListElement.innerHTML = '<li>Error: Payload no es objeto.</li>';
                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                 loaderElement.style.display = 'block';
                 document.getElementById('graficoTortaGithub').style.display = 'none';
                 return;
             }
 
+            // Ahora destructurar
             const { labels, valores, titulo, error: dataError, message: errorMessage } = dataPayload;
 
-            console.log("IFRAME: Datos destructurados -> labels:", labels, "(es array:", Array.isArray(labels), ")");
-            console.log("IFRAME: Datos destructurados -> valores:", valores, "(es array:", Array.isArray(valores), ")");
-            console.log("IFRAME: Datos destructurados -> titulo:", titulo);
+            console.log("IFRAME: ---- Verificación de Arrays ----");
+            console.log("IFRAME: Variable 'labels' (después de destructurar):", labels);
+            console.log("IFRAME: Array.isArray(labels):", Array.isArray(labels));
+            console.log("IFRAME: Object.prototype.toString.call(labels):", Object.prototype.toString.call(labels));
+            console.log("IFRAME: isItAnArray(labels):", isItAnArray(labels));
+
+
+            console.log("IFRAME: Variable 'valores' (después de destructurar):", valores);
+            console.log("IFRAME: Array.isArray(valores):", Array.isArray(valores));
+            console.log("IFRAME: Object.prototype.toString.call(valores):", Object.prototype.toString.call(valores));
+            console.log("IFRAME: isItAnArray(valores):", isItAnArray(valores));
+            console.log("IFRAME: ------------------------------");
+
+
+            console.log("IFRAME: Variable 'titulo':", titulo);
 
             if (dataError) {
                 console.error("IFRAME: Error reportado desde Velo:", errorMessage);
@@ -241,8 +259,9 @@
                 return;
             }
 
-            if (!Array.isArray(labels) || !Array.isArray(valores)) {
-                console.error("IFRAME ERROR CRÍTICO: 'labels' o 'valores' NO SON ARRAYS.", "Tipo labels:", typeof labels, "Tipo valores:", typeof valores);
+            // Usar la función de verificación robusta
+            if (!isItAnArray(labels) || !isItAnArray(valores)) {
+                console.error("IFRAME ERROR CRÍTICO: 'labels' o 'valores' NO SON ARRAYS (según isItAnArray).");
                 loaderElement.textContent = "Error: Estructura de datos incorrecta (no son arrays).";
                 legendListElement.innerHTML = "<li>Error: 'labels' o 'valores' deben ser listas.</li>";
                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
@@ -355,13 +374,12 @@
             }
         });
 
-        // Mensaje inicial si no se reciben datos
         setTimeout(() => {
             if (!graficoInstance && loaderElement.style.display !== 'none' && loaderElement.textContent === "Cargando datos...") {
-                console.log("IFRAME: Timeout, no se recibieron datos iniciales de Velo.");
+                console.log("IFRAME: Timeout (10s), no se recibieron datos iniciales de Velo.");
                 loaderElement.textContent = "Esperando datos de Wix...";
             }
-        }, 7000); // Aumentado el timeout a 7 segundos
+        }, 10000); // Aumentado el timeout a 10 segundos
     </script>
 </body>
 </html>
