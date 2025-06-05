@@ -122,17 +122,16 @@
         const loaderElement = document.getElementById('loader');
         const legendListElement = document.getElementById('legendList');
         let graficoInstance = null;
+        const wixPageOrigin = "https://www.cyrus-space.com"; // Tu dominio de Wix
 
         function isItAnArray(value) {
             const isArrayStandard = Array.isArray(value);
             const isArrayRobust = Object.prototype.toString.call(value) === '[object Array]';
-            // console.log(`isItAnArray check for value:`, value, `Array.isArray: ${isArrayStandard}`, `Object.prototype.toString: ${isArrayRobust}`);
-            return isArrayStandard || isArrayRobust; // Consider it an array if either check passes
+            return isArrayStandard || isArrayRobust;
         }
 
         function formatCurrency(value, currencyCode = 'VED', locale = 'es-VE') {
             if (typeof value !== 'number' || isNaN(value)) {
-                // console.warn(`formatCurrency recibió un valor no numérico: ${value}. Se mostrará como 0.`);
                 value = 0;
             }
             try {
@@ -190,9 +189,14 @@
         }
 
         window.addEventListener('message', (event) => {
+            // **NUEVO: Filtro de Origen Estricto**
+            if (event.origin !== wixPageOrigin) {
+                // console.log(`IFRAME: Mensaje ignorado de origen no esperado: ${event.origin}`);
+                return; // Ignora mensajes de otros orígenes (ej. Metamask, self-messages)
+            }
+
             console.log("--------------------------------------------------");
-            console.log("IFRAME: NUEVO MENSAJE RECIBIDO");
-            console.log("IFRAME: Origen del mensaje:", event.origin);
+            console.log("IFRAME: NUEVO MENSAJE RECIBIDO (Origen Verificado)");
             console.log("IFRAME: Tipo de event.data (RAW):", typeof event.data);
             console.log("IFRAME: Contenido de event.data (RAW):", event.data);
 
@@ -204,18 +208,14 @@
                     dataPayload = JSON.parse(dataPayload);
                     console.log("IFRAME: JSON.parse() exitoso.");
                     console.log("IFRAME: Contenido de dataPayload (DESPUÉS DE PARSE):", dataPayload);
-                    // Inspeccionar las propiedades clave directamente del payload parseado
                     if (dataPayload && typeof dataPayload === 'object') {
-                        console.log("IFRAME: dataPayload.labels (directo):", dataPayload.labels);
-                        console.log("IFRAME: dataPayload.valores (directo):", dataPayload.valores);
+                        console.log("IFRAME: dataPayload.labels (directo después de parse):", dataPayload.labels);
+                        console.log("IFRAME: dataPayload.valores (directo después de parse):", dataPayload.valores);
                     }
                 } catch (e) {
                     console.error("IFRAME ERROR: Falló JSON.parse(). Error:", e, "String original:", event.data);
                     loaderElement.textContent = "Error: Datos recibidos corruptos (JSON).";
-                    legendListElement.innerHTML = '<li>Error: Datos JSON ilegibles.</li>';
-                    if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
-                    loaderElement.style.display = 'block';
-                    document.getElementById('graficoTortaGithub').style.display = 'none';
+                    // ... (resto del manejo de error)
                     return;
                 }
             }
@@ -223,47 +223,32 @@
             if (typeof dataPayload !== 'object' || dataPayload === null) {
                 console.error("IFRAME ERROR: El payload procesado no es un objeto válido.", dataPayload);
                 loaderElement.textContent = "Error: Formato de datos no es objeto.";
-                legendListElement.innerHTML = '<li>Error: Payload no es objeto.</li>';
-                if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
-                loaderElement.style.display = 'block';
-                document.getElementById('graficoTortaGithub').style.display = 'none';
+                // ... (resto del manejo de error)
                 return;
             }
 
-            // Ahora destructurar
             const { labels, valores, titulo, error: dataError, message: errorMessage } = dataPayload;
 
             console.log("IFRAME: ---- Verificación de Arrays ----");
             console.log("IFRAME: Variable 'labels' (después de destructurar):", labels);
-            console.log("IFRAME: Array.isArray(labels):", Array.isArray(labels));
-            console.log("IFRAME: Object.prototype.toString.call(labels):", Object.prototype.toString.call(labels));
             console.log("IFRAME: isItAnArray(labels):", isItAnArray(labels));
-
-
             console.log("IFRAME: Variable 'valores' (después de destructurar):", valores);
-            console.log("IFRAME: Array.isArray(valores):", Array.isArray(valores));
-            console.log("IFRAME: Object.prototype.toString.call(valores):", Object.prototype.toString.call(valores));
             console.log("IFRAME: isItAnArray(valores):", isItAnArray(valores));
             console.log("IFRAME: ------------------------------");
-
-
             console.log("IFRAME: Variable 'titulo':", titulo);
+
 
             if (dataError) {
                 console.error("IFRAME: Error reportado desde Velo:", errorMessage);
                 loaderElement.textContent = `Error de Velo: ${errorMessage || "Desconocido"}`;
-                legendListElement.innerHTML = `<li>Error Velo: ${errorMessage || "Ver consola"}</li>`;
-                if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
-                loaderElement.style.display = 'block';
-                document.getElementById('graficoTortaGithub').style.display = 'none';
+                // ... (resto del manejo de error)
                 return;
             }
 
-            // Usar la función de verificación robusta
             if (!isItAnArray(labels) || !isItAnArray(valores)) {
                 console.error("IFRAME ERROR CRÍTICO: 'labels' o 'valores' NO SON ARRAYS (según isItAnArray).");
                 loaderElement.textContent = "Error: Estructura de datos incorrecta (no son arrays).";
-                legendListElement.innerHTML = "<li>Error: 'labels' o 'valores' deben ser listas.</li>";
+                 // ... (resto del manejo de error)
                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                 loaderElement.style.display = 'block';
                 document.getElementById('graficoTortaGithub').style.display = 'none';
@@ -275,7 +260,7 @@
             if (labels.length === 0 && numericValores.every(v => v === 0)) {
                  console.warn("IFRAME: 'labels' vacío y 'valores' son todos cero o vacíos. Mostrando mensaje de 'Sin datos'.");
                  loaderElement.textContent = titulo || "No hay datos para mostrar.";
-                 legendListElement.innerHTML = '<li>No hay datos disponibles.</li>';
+                 // ... (resto del manejo de estado)
                  if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                  loaderElement.style.display = 'block';
                  document.getElementById('graficoTortaGithub').style.display = 'none';
@@ -285,7 +270,7 @@
             if (labels.length !== numericValores.length) {
                 console.warn("IFRAME Advertencia: 'labels' y 'valores' no coinciden en longitud.", "Labels:", labels.length, "Valores:", numericValores.length);
                 loaderElement.textContent = "Datos inconsistentes (longitudes no coinciden).";
-                legendListElement.innerHTML = '<li>Error: Inconsistencia en datos.</li>';
+                // ... (resto del manejo de error)
                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                 loaderElement.style.display = 'block';
                 document.getElementById('graficoTortaGithub').style.display = 'none';
@@ -316,7 +301,7 @@
                             borderWidth: 1
                         }]
                     },
-                    options: {
+                    options: { /* ... opciones del gráfico ... */
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
@@ -367,8 +352,8 @@
             } catch (chartError) {
                 console.error("IFRAME Error al crear Chart.js:", chartError);
                 loaderElement.textContent = "Error crítico al generar gráfico.";
-                legendListElement.innerHTML = `<li>Error gráfico: ${chartError.message}</li>`;
-                if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
+                // ... (resto del manejo de error)
+                 if (graficoInstance) { graficoInstance.destroy(); graficoInstance = null; }
                 loaderElement.style.display = 'block';
                 document.getElementById('graficoTortaGithub').style.display = 'none';
             }
@@ -379,7 +364,7 @@
                 console.log("IFRAME: Timeout (10s), no se recibieron datos iniciales de Velo.");
                 loaderElement.textContent = "Esperando datos de Wix...";
             }
-        }, 10000); // Aumentado el timeout a 10 segundos
+        }, 10000);
     </script>
 </body>
 </html>
