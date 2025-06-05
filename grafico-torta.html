@@ -1,158 +1,161 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Gráfico de Torta</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body { 
-      margin: 0; 
-      padding: 0; /* Añadido para asegurar que no haya padding por defecto */
-      background: transparent; 
-      display: flex; /* Ayuda a centrar el canvas si es más pequeño que el body */
-      align-items: center; /* Centrado vertical */
-      justify-content: center; /* Centrado horizontal */
-      width: 100vw; /* Ancho completo de la ventana de visualización del iframe */
-      height: 100vh; /* Alto completo de la ventana de visualización del iframe */
-    }
-    #chartContainer { /* Contenedor para el canvas para mejor control del tamaño */
-      width: 98%; /* Ligeramente menor que 100% para evitar barras de scroll inesperadas */
-      height: 98%;
-      max-width: 600px; /* Opcional: puedes ajustar o quitar este max-width según tus necesidades */
-    }
-    canvas { 
-      display: block; /* Quita espacios extra debajo del canvas */
-      width: 100%; 
-      height: 100%; 
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Distribución de Fondos por Cuenta</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0; /* Añadido para asegurar que no haya padding por defecto */
+            background: transparent;
+            display: flex; /* Ayuda a centrar el canvas si es más pequeño que el body */
+            align-items: center; /* Centrado vertical */
+            justify-content: center; /* Centrado horizontal */
+            width: 100vw; /* Ancho completo de la ventana de visualización del iframe */
+            height: 100vh; /* Alto completo de la ventana de visualización del iframe */
+        }
+        #chartContainer { /* Contenedor para el canvas para mejor control del tamaño */
+            width: 98%; /* Ligeramente menor que 100% para evitar barras de scroll inesperadas */
+            height: 98%;
+            max-width: 600px; /* Opcional: puedes ajustar o quitar este max-width según tus necesidades */
+        }
+        canvas {
+            display: block; /* Quita espacios extra debajo del canvas */
+            width: 100%;
+            height: 100%;
+        }
+    </style>
 </head>
 <body>
-  <div id="chartContainer">
-    <canvas id="graficoTorta"></canvas>
-  </div>
+    <div id="chartContainer">
+        <canvas id="graficoTorta"></canvas>
+    </div>
 
-  <script>
-    const ctx = document.getElementById('graficoTorta').getContext('2d');
-    let grafico; // Variable para mantener la instancia del gráfico
+    <script>
+        const ctx = document.getElementById('graficoTorta').getContext('2d');
+        let grafico;
 
-    window.addEventListener('message', (event) => {
-      // --- Verificación de Seguridad (Opcional pero Recomendado) ---
-      // Reemplaza 'https://TU-DOMINIO-WIX.wixsite.com' con el origen real de tu sitio Wix publicado
-      // y 'https://editor.wix.com' para pruebas en el editor.
-      // const allowedOrigins = [
-      //   'https://TU-DOMINIO-WIX.wixsite.com', // Tu sitio Wix publicado
-      //   'https://editor.wix.com',           // Editor de Wix
-      //   'https://cyrusfire.github.io'       // Tu propia página de GitHub Pages (para pruebas directas si envías mensajes desde ella)
-      // ];
-      // if (!allowedOrigins.includes(event.origin)) {
-      //   console.warn("Mensaje ignorado de origen no permitido:", event.origin);
-      //   return; // No procesar el mensaje si no es de un origen confiable
-      // }
+        window.addEventListener('message', (event) => {
+            // --- Verificación de Origen (Opcional, pero buena práctica) ---
+            // Descomenta y ajusta si quieres verificar el origen del mensaje por seguridad.
+            // const allowedOrigins = [
+            //   'https://TU-DOMINIO-WIX.wixsite.com', // Tu sitio Wix publicado
+            //   'https://editor.wix.com',           // Editor de Wix
+            //   'https://cyrusfire.github.io'       // Tu propia página de GitHub Pages (para pruebas directas)
+            // ];
+            // if (!allowedOrigins.includes(event.origin)) {
+            //   console.warn("Mensaje ignorado de origen no permitido:", event.origin);
+            //   return;
+            // }
 
-      // --- Verificación de Datos Recibidos ---
-      if (event.data && 
-          typeof event.data === 'object' && 
-          Array.isArray(event.data.labels) && 
-          Array.isArray(event.data.valores)) {
-        
-        const { labels, valores, titulo } = event.data; // 'titulo' es opcional, se puede usar desde Velo
+            if (event.data &&
+                typeof event.data === 'object' &&
+                Array.isArray(event.data.labels) &&
+                Array.isArray(event.data.valores)) {
 
-        // Destruir el gráfico anterior si existe (importante para actualizaciones)
-        if (grafico) {
-          grafico.destroy();
-        }
+                const { labels, valores, titulo } = event.data;
 
-        // Crear el nuevo gráfico
-        grafico = new Chart(ctx, {
-          type: 'pie', // Tipo de gráfico
-          data: {
-            labels: labels,
-            datasets: [{
-              label: 'Valores', // Etiqueta para el conjunto de datos (útil en tooltips)
-              data: valores,
-              backgroundColor: [ // Paleta de colores extendida
-                '#36A2EB', '#FFCE56', '#FF6384', '#4BC0C0', '#9966FF', 
-                '#FF9F40', '#8AC926', '#1982C4', '#F45B69', '#6A4C93' 
-                // Añade más colores si esperas más de 10 segmentos
-              ],
-              borderColor: '#ffffff', // Color del borde de los segmentos (blanco para separación)
-              borderWidth: 1         // Ancho del borde
-            }]
-          },
-          options: {
-            responsive: true,       // Hace que el gráfico se ajuste al tamaño del contenedor
-            maintainAspectRatio: false, // Permite que el gráfico ignore la relación de aspecto original
-                                        // y llene el alto y ancho del contenedor del canvas.
-                                        // Esencial cuando width y height del canvas son 100%.
-            plugins: {
-              legend: {
-                position: 'bottom', // Posición de la leyenda
-                labels: {
-                  padding: 20 // Espacio alrededor de las etiquetas de la leyenda
+                if (grafico) {
+                    grafico.destroy();
                 }
-              },
-              title: {
-                display: true,
-                text: titulo || 'Distribución', // Usa el título enviado desde Velo o uno por defecto
-                font: {
-                  size: 16 // Tamaño de la fuente del título
-                },
-                padding: {
-                    top: 10,
-                    bottom: 10
-                }
-              },
-              tooltip: { // Configuración de tooltips (información al pasar el mouse)
-                enabled: true,
-                callbacks: {
-                    label: function(context) {
-                        let label = context.label || '';
-                        if (label) {
-                            label += ': ';
+
+                grafico = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Fondos', // Etiqueta del dataset, visible en tooltips
+                            data: valores,
+                            backgroundColor: [ // Paleta de colores
+                                '#36A2EB', '#FFCE56', '#FF6384', '#4BC0C0', '#9966FF',
+                                '#FF9F40', '#8AC926', '#1982C4', '#F45B69', '#6A4C93',
+                                '#2ECC71', '#E74C3C', '#F1C40F', '#7F8C8D', '#D35400'
+                                // Añade más colores si esperas muchos segmentos
+                            ],
+                            borderColor: '#ffffff', // Color del borde entre segmentos
+                            borderWidth: 1          // Ancho del borde
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom', // Posición de la leyenda
+                                labels: {
+                                    color: '#ffffff', // Color blanco para las etiquetas de la leyenda
+                                    padding: 20,       // Espaciado de la leyenda
+                                    font: {
+                                        size: 12 // Tamaño de fuente para la leyenda
+                                    }
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: titulo || 'Distribución de Fondos', // Título del gráfico
+                                color: '#ffffff', // Color blanco para el título
+                                font: {
+                                    size: 16 // Tamaño de fuente para el título
+                                },
+                                padding: {
+                                    top: 10,
+                                    bottom: 20 // Más espacio después del título
+                                }
+                            },
+                            tooltip: { // Configuración de los mensajes emergentes (tooltips)
+                                enabled: true,
+                                backgroundColor: 'rgba(0,0,0,0.8)', // Fondo oscuro para el tooltip
+                                titleColor: '#ffffff', // Color del título en el tooltip
+                                bodyColor: '#ffffff', // Color del cuerpo del texto en el tooltip
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed !== null) {
+                                            // Formatear el valor numérico (puedes ajustar el 'es-ES' a tu preferencia)
+                                            label += new Intl.NumberFormat('es-ES', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(context.parsed);
+                                            
+                                            // Calcular y añadir el porcentaje
+                                            const total = context.dataset.data.reduce((a, b) => parseFloat(a) + parseFloat(b), 0);
+                                            const percentage = (parseFloat(context.parsed) / total * 100).toFixed(2) + '%';
+                                            label += ' (' + percentage + ')';
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
                         }
-                        if (context.parsed !== null) {
-                            label += context.parsed.toLocaleString(); // Muestra el valor numérico
-                        }
-                        // Opcional: mostrar porcentaje
-                        // let total = context.chart.getDatasetMeta(0).total;
-                        // let percentage = (context.parsed / total * 100).toFixed(2) + '%';
-                        // label += ' (' + percentage + ')';
-                        return label;
                     }
-                }
-              }
+                });
+            } else {
+                console.warn("Datos recibidos para el gráfico no tienen el formato esperado o faltan:", event.data);
+                // Opcional: Mostrar un mensaje en el canvas si no hay datos o son incorrectos
+                // ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                // ctx.font = "14px Arial";
+                // ctx.fillStyle = "#dddddd";
+                // ctx.textAlign = "center";
+                // ctx.fillText("Esperando datos válidos...", ctx.canvas.width / 2, ctx.canvas.height / 2);
             }
-          }
         });
-      } else {
-        // Mensaje en consola si los datos no son los esperados
-        console.warn("Datos recibidos para el gráfico no tienen el formato esperado o faltan:", event.data);
-        // Opcional: Mostrar un mensaje en el canvas indicando que faltan datos
-        // ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-        // ctx.font = "16px Arial";
-        // ctx.fillStyle = "#888";
-        // ctx.textAlign = "center";
-        // ctx.fillText("Esperando datos...", ctx.canvas.width / 2, ctx.canvas.height / 2);
-      }
-    });
 
-    // Opcional: Mostrar un mensaje inicial mientras se espera el primer postMessage
-    // (esto se dibujará una vez y luego el gráfico lo sobrescribirá)
-    // function drawInitialMessage() {
-    //   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // Limpiar canvas
-    //   ctx.font = "16px Arial";
-    //   ctx.fillStyle = "#ccc"; // Color de texto suave
-    //   ctx.textAlign = "center";
-    //   ctx.textBaseline = "middle";
-    //   ctx.fillText("Cargando gráfico...", ctx.canvas.width / 2, ctx.canvas.height / 2);
-    // }
-    // Espera a que el DOM esté completamente cargado para dibujar el mensaje inicial
-    // document.addEventListener('DOMContentLoaded', (event) => {
-    //    if (!grafico) { // Solo si el gráfico no se ha renderizado por un postMessage inmediato
-    //        drawInitialMessage();
-    //    }
-    // });
-  </script>
+        // Opcional: Mostrar un mensaje inicial mientras se espera el primer postMessage
+        // function drawInitialMessage() {
+        //   if (grafico) return; // No dibujar si el gráfico ya se mostró
+        //   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        //   ctx.font = "16px Arial";
+        //   ctx.fillStyle = "#cccccc"; // Color de texto suave
+        //   ctx.textAlign = "center";
+        //   ctx.textBaseline = "middle";
+        //   ctx.fillText("Cargando gráfico...", ctx.canvas.width / 2, ctx.canvas.height / 2);
+        // }
+        // document.addEventListener('DOMContentLoaded', () => {
+        //    // Solo llama a drawInitialMessage si el canvas está visible y no hay gráfico aún.
+        //    // Esto es un poco más complejo de asegurar que funcione bien sin parpadeos.
+        //    // Por ahora, es mejor confiar en que los datos lleguen rápido.
+        // });
+    </script>
 </body>
 </html>
